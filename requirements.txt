@@ -2,3 +2,4 @@ requests
 beautifulsoup4
 git+https://github.com/modelcontextprotocol/python-sdk.git#egg=mcp
 lxml
+

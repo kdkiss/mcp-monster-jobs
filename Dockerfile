@@ -13,3 +13,4 @@ COPY . .
 
 # Run the MCP Monster job search server
 ENTRYPOINT ["python", "monster_server.py"]
+
