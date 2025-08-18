@@ -1,7 +1,0 @@
-name: mcp-monster-jobs
-
-services:
-  - name: monster-job-search
-    entrypoint:
-      - python
-      - monster_server.py
