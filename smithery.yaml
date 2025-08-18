@@ -1,0 +1,8 @@
+name: mcp-monster-jobs
+
+services:
+  - name: monster-job-search
+    dockerfile: Dockerfile
+    entrypoint:
+      - python
+      - monster_server.py
