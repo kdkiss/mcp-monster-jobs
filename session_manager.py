@@ -3,6 +3,10 @@
 Session management for storing and retrieving search results
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import uuid
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta

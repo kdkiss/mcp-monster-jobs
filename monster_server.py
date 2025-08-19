@@ -8,16 +8,25 @@ A Model Context Protocol server for searching job listings on Monster.com
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
+
+try:
+    import requests
+    from bs4 import BeautifulSoup
+    from urllib.parse import quote_plus
+except ImportError as e:
+    logging.error(f"Missing required dependency: {e}")
+    raise
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Resource, Tool, TextContent
 import mcp.types as types
 
-from job_details_models import JobDetails
-from session_manager import session_manager
+try:
+    from job_details_models import JobDetails
+    from session_manager import session_manager
+except ImportError as e:
+    logging.error(f"Missing local module: {e}")
+    raise
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("monster-server")
