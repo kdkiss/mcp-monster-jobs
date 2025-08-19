@@ -7,3 +7,9 @@ startCommand:
     properties: {}
 build:
   dockerfile: "Dockerfile"
+env:
+  LOG_LEVEL: "INFO"
+  REQUEST_TIMEOUT: "10"
+  USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  MAX_RETRIES: "3"
+  CACHE_TTL: "300"
