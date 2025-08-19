@@ -19,5 +19,8 @@ RUN uv pip install --system --no-cache -r requirements.txt
 # Copy the rest of the application's code to the container
 COPY . .
 
+# Make the script executable
+RUN chmod +x monster_server.py
+
 # Run monster_server.py when the container launches
 CMD ["python", "monster_server.py"]

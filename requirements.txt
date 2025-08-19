@@ -1,6 +1,6 @@
-requests
-beautifulsoup4
+requests>=2.32.0
+beautifulsoup4>=4.13.0
 git+https://github.com/modelcontextprotocol/python-sdk.git#egg=mcp
-lxml
-uvicorn
-
+lxml>=6.0.0
+uvicorn>=0.35.0
+pydantic>=2.11.0
