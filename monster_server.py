@@ -252,7 +252,29 @@ async def get_job_details(job_query: str, session_id: Optional[str] = None) -> s
 
 
 import os
+import uvicorn
+from starlette.middleware.cors import CORSMiddleware
 
 if __name__ == "__main__":
+    # HTTP mode with config extraction from URL parameters
+    print("Monster Job Search MCP Server starting in HTTP mode...")
+
+    # Setup Starlette app with CORS for cross-origin requests
+    app = mcp.streamable_http_app()
+
+    # IMPORTANT: add CORS middleware for browser based clients
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["mcp-session-id", "mcp-protocol-version"],
+        max_age=86400,
+    )
+
+    # Get port from environment variable (defaults to 8080)
     port = int(os.environ.get("PORT", 8080))
-    mcp.run(host="0.0.0.0", port=port)
+    print(f"Listening on port {port}")
+
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")
