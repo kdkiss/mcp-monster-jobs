@@ -1,0 +1,9 @@
+version: 1
+runtime: "container"
+startCommand:
+  type: "http"
+  configSchema:
+    type: "object"
+    properties: {}
+build:
+  dockerfile: "Dockerfile"
