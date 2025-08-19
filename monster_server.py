@@ -261,4 +261,21 @@ async def get_job_details(job_query: str, session_id: Optional[str] = None) -> s
 
 
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    import os
+    
+    # Add basic health check for deployment
+    if len(sys.argv) > 1 and sys.argv[1] == "--health":
+        print("Server is healthy")
+        sys.exit(0)
+    
+    # Log startup for debugging
+    logger.info("Starting Monster MCP Server...")
+    logger.info(f"Python version: {sys.version}")
+    logger.info(f"Working directory: {os.getcwd()}")
+    
+    try:
+        mcp.run()
+    except Exception as e:
+        logger.error(f"Server startup failed: {e}")
+        raise
