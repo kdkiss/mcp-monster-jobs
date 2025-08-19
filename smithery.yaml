@@ -1,0 +1,7 @@
+build:
+  type: "docker"
+deploy:
+  type: "service"
+  name: "mcp-monster-jobs"
+  ports:
+    - port: 8000
