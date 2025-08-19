@@ -5,6 +5,7 @@ startCommand:
   configSchema:
     type: "object"
     properties: {}
+  exampleConfig: {}
 build:
   dockerfile: "Dockerfile"
 env:
