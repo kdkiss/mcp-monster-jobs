@@ -2,3 +2,8 @@
 node_modules
 .env
 __pycache__/
+claude_config.json
+.gitignore
+test_with_inspector.py
+test_direct.py
+simple_test.py
