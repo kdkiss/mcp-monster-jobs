@@ -12,11 +12,6 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 
-from typing import Any, Dict, List, Optional
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
-
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Resource, Tool, TextContent
 import mcp.types as types
@@ -154,17 +149,7 @@ class MonsterJobDetailParser:
                 title=title,
                 company=company,
                 location=location,
-                salary=None,
-                employment_type=None,
-                experience_level=None,
-                posted_date=None,
                 description=description,
-                requirements=[],
-                responsibilities=[],
-                benefits=[],
-                company_details={},
-                application_instructions="",
-                contact_info={},
                 job_url=url,
             )
         except Exception as e:
