@@ -251,5 +251,8 @@ async def get_job_details(job_query: str, session_id: Optional[str] = None) -> s
         return f"Error retrieving job details: {str(e)}"
 
 
+import os
+
 if __name__ == "__main__":
-    mcp.run()
+    port = int(os.environ.get("PORT", 8080))
+    mcp.run(host="0.0.0.0", port=port)
