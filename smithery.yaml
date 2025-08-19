@@ -1,0 +1,30 @@
+version: 1
+runtime: "container"
+startCommand:
+  type: "stdio"
+  configSchema:
+    type: "object"
+    properties:
+      log_level:
+        type: "string"
+        enum: ["DEBUG", "INFO", "WARNING", "ERROR"]
+        default: "INFO"
+        description: "Logging level for the server"
+      request_timeout:
+        type: "integer"
+        default: 10
+        minimum: 5
+        maximum: 60
+        description: "HTTP request timeout in seconds"
+  exampleConfig:
+    log_level: "INFO"
+    request_timeout: 10
+build:
+  dockerfile: "Dockerfile"
+  timeout: 300
+env:
+  LOG_LEVEL: "INFO"
+  REQUEST_TIMEOUT: "10"
+  USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  MAX_RETRIES: "3"
+  CACHE_TTL: "300"
