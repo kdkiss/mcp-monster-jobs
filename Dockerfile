@@ -22,5 +22,5 @@ COPY . .
 # Make the script executable
 RUN chmod +x monster_server.py
 
-# Run monster_server.py when the container launches
-CMD ["python", "monster_server.py"]
+# Run simple_server.py when the container launches
+CMD ["python", "simple_server.py"]
