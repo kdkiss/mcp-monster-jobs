@@ -1,4 +1,5 @@
 # Use the recommended Python image with uv pre-installed
+# Cache-busting comment: 1
 FROM ghcr.io/astral-sh/uv:python3.12-alpine
 
 # Set the working directory in the container
@@ -12,7 +13,8 @@ RUN apk add --no-cache git
 COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt using uv
-RUN uv pip install --no-cache -r requirements.txt
+# The --system flag is required to install into the global site-packages
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy the rest of the application's code to the container
 COPY . .
