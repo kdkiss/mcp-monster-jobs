@@ -1,17 +1,18 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Use the recommended Python image with uv pre-installed
+FROM ghcr.io/astral-sh/uv:python3.12-alpine
 
 # Set the working directory in the container
 WORKDIR /app
 
 # Install git so we can install the mcp dependency from github
-RUN apt-get update && apt-get install -y git
+# apk add --no-cache is the alpine equivalent of apt-get install -y
+RUN apk add --no-cache git
 
 # Copy the requirements file into the container at /app
 COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Install any needed packages specified in requirements.txt using uv
+RUN uv pip install --no-cache -r requirements.txt
 
 # Copy the rest of the application's code to the container
 COPY . .
