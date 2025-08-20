@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { Server as McpServer } from '@modelcontextprotocol/sdk/dist/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/dist/server/stdio.js';
 import { z } from 'zod';
 import puppeteer from 'puppeteer';
 

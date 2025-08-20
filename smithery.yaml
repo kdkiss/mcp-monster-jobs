@@ -1,4 +1,8 @@
 version: 1
+metadata:
+  displayName: Monster Jobs
+  description: Search and retrieve job listings from Monster.com with location filtering and detailed job information
+  icon: https://raw.githubusercontent.com/kdkiss/mcp-monster-jobs/main/assets/logo.png
 build:
   dockerfile: Dockerfile
 mcp:
