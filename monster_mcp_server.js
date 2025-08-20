@@ -21,10 +21,11 @@ let sharedBrowser = null;
 
 async function getBrowser() {
   if (!sharedBrowser) {
-    sharedBrowser = await puppeteer.launch({ 
+    sharedBrowser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
+    console.log('Launched Puppeteer browser instance');
   }
   return sharedBrowser;
 }
@@ -91,22 +92,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
-  switch (name) {
-    case 'search_monster_jobs':
-      return await searchJobs(args);
-    case 'get_job_details':
-      return await getJobDetails(args);
-    default:
-      throw new Error(`Unknown tool: ${name}`);
+  try {
+    switch (name) {
+      case 'search_monster_jobs':
+        return await searchJobs(args);
+      case 'get_job_details':
+        return await getJobDetails(args);
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    console.error(`Error executing tool ${name}:`, error);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: `Failed to execute tool: ${error.message}`
+          }, null, 2)
+        }
+      ]
+    };
   }
 });
 
 async function searchJobs(args) {
     const { query, location, radius = 5, recency = 'last+week', limit = 10 } = args;
+    console.log(`Searching Monster jobs: ${query} in ${location}`);
     
-    let browser;
     try {
-      browser = await getBrowser();
+      const browser = await getBrowser();
       
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -236,6 +252,7 @@ async function searchJobs(args) {
 
 async function getJobDetails(args) {
     const { job_number, job_id } = args;
+    console.log(`Getting job details for job_number:${job_number} job_id:${job_id}`);
     
     let targetJob;
     
@@ -247,6 +264,7 @@ async function getJobDetails(args) {
     }
     
     if (!targetJob) {
+      console.warn('Job not found in cache');
       return {
         content: [
           {
@@ -265,9 +283,9 @@ async function getJobDetails(args) {
       };
     }
     
-    let browser;
     try {
-      browser = await getBrowser();
+      const browser = await getBrowser();
+      console.log(`Navigating to job URL: ${targetJob.jobUrl}`);
       
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -378,9 +396,38 @@ function buildSearchUrl(query, location, radius, recency) {
   }
 
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Monster.com Jobs MCP server running on stdio');
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Monster.com Jobs MCP server running on stdio');
+  } catch (error) {
+    console.error('Failed to start MCP server:', error);
+    process.exit(1);
+  }
 }
 
-main().catch(console.error);
+// Cleanup function for graceful shutdown
+function cleanup() {
+  if (sharedBrowser) {
+    sharedBrowser.close()
+      .then(() => console.log('Browser closed during cleanup'))
+      .catch(err => console.error('Error closing browser:', err));
+    sharedBrowser = null;
+  }
+}
+
+// Handle process termination signals
+process.on('SIGINT', () => {
+  console.log('Received SIGINT - shutting down');
+  cleanup();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM - shutting down');
+  cleanup();
+  process.exit(0);
+});
+
+// Start the server
+main();
