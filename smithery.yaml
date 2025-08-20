@@ -1,3 +1,0 @@
-version: 1
-start:
-  command: ["python", "main.py"]
