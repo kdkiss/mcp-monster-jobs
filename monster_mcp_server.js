@@ -2,9 +2,21 @@
 
 import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import { z } from 'zod';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
+
+const ListToolsRequestSchema = z.object({
+  method: z.literal('list_tools'),
+  params: z.object({}).optional(),
+});
+
+const CallToolRequestSchema = z.object({
+  method: z.literal('call_tool'),
+  params: z.object({
+    name: z.string(),
+    arguments: z.any(),
+  }),
+});
 
 const server = new McpServer({
   name: 'monster-jobs',
