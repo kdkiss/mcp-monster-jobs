@@ -1,0 +1,13 @@
+# Minimal test Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy only the essential files
+COPY package.json .
+
+# Install only production dependencies
+RUN npm install --omit=dev
+
+# Simple test command
+CMD ["node", "-e", "console.log('Minimal test container running')"]
