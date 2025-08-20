@@ -7,10 +7,8 @@ ENV PYTHONUNBUFFERED 1
 ENV PIP_NO_CACHE_DIR=off
 ENV PIP_DEFAULT_TIMEOUT=100
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# No extra system dependencies required
+# Keep image minimal and rely on prebuilt wheels
 
 # Create and set working directory
 WORKDIR /app
