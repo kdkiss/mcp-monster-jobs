@@ -129,29 +129,27 @@ def test_health_check_in_docker():
         return False
 
 def main():
-    """Run all tests"""
+    """Run tests suitable for MCP stdio servers (no background daemon expectation)"""
     logger.info("Starting server verification tests...")
 
     # Test Docker build
     docker_success = test_docker_build()
 
-    # Test health check in Docker
+    # MCP stdio servers are not expected to run as background daemons
+    # Only verify that the image builds and health check passes
     health_success = test_health_check_in_docker()
-
-    # Test Docker run
-    run_success = test_docker_run()
 
     # Summary
     logger.info("\n=== Test Results ===")
     logger.info(f"Docker Build: {'PASS' if docker_success else 'FAIL'}")
     logger.info(f"Health Check in Docker: {'PASS' if health_success else 'FAIL'}")
-    logger.info(f"Docker Run: {'PASS' if run_success else 'FAIL'}")
+    logger.info("Docker Run: SKIPPED (MCP stdio server)")
 
-    if all([docker_success, health_success, run_success]):
-        logger.info("All tests PASSED! Server is ready for deployment.")
+    if all([docker_success, health_success]):
+        logger.info("All tests PASSED for MCP stdio server. Ready for Smithery deployment.")
         return 0
     else:
-        logger.error("Some tests FAILED. Please check the logs for details.")
+        logger.error("Tests FAILED. See logs above.")
         return 1
 
 if __name__ == "__main__":
