@@ -1,29 +1,50 @@
 # Monster Jobs MCP Server
 
+<div align="center">
+
 [![Smithery](https://img.shields.io/badge/Smithery-Compatible-blue)](https://smithery.ai)
 [![NPM Version](https://img.shields.io/npm/v/mcp-monster-jobs)](https://www.npmjs.com/package/mcp-monster-jobs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Issues](https://img.shields.io/github/issues/kdkiss/mcp-monster-jobs)](https://github.com/kdkiss/mcp-monster-jobs/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/kdkiss/mcp-monster-jobs/pulls)
 
-A production-ready Model Context Protocol (MCP) server for searching and retrieving job listings from Monster.com. This server provides comprehensive job search functionality with advanced filtering options.
+</div>
 
-1. **Search Jobs**: Find jobs based on query, location, and filters
-2. **Get Job Details**: Retrieve detailed information for specific job listings
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kdkiss/mcp-monster-jobs/main/assets/logo.png" alt="Monster Jobs MCP Logo" width="200"/>
+</p>
 
-## Features
+## 📋 Overview
 
-- 🔍 Advanced job search with location and radius filtering
-- 📅 Recency filters (today, last 2 days, last week, last 2 weeks)
-- 💰 Salary information extraction
-- 📝 Detailed job descriptions and requirements
-- 🏢 Company information
-- 🌐 Direct job listing URLs
-- 💾 Smart caching for efficient detail retrieval
-- 🔄 Rate limiting and error handling
-- 🎯 Production-ready with proper error handling
+A production-ready Model Context Protocol (MCP) server for searching and retrieving job listings from Monster.com. This server provides comprehensive job search functionality with advanced filtering options, enabling AI assistants to access real-time job market data.
 
-## Installation
+**Key Capabilities:**
+- **Search Jobs**: Find jobs based on query, location, and filters
+- **Get Job Details**: Retrieve detailed information for specific job listings
 
-### From Smithery (Recommended)
+## ✨ Features
+
+- 🔍 **Advanced job search** with location and radius filtering
+- 📅 **Recency filters** (today, last 2 days, last week, last 2 weeks)
+- 💰 **Salary information** extraction
+- 📝 **Detailed job descriptions** and requirements
+- 🏢 **Company information** retrieval
+- 🌐 **Direct job listing URLs** for applications
+- 💾 **Smart caching** for efficient detail retrieval
+- 🔄 **Rate limiting** and error handling
+- 🎯 **Production-ready** with robust error handling
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 16.x or higher
+- npm or yarn
+- Internet connection for API access
+
+### Installation Options
+
+#### From Smithery (Recommended)
 
 Install directly from the Smithery registry:
 
@@ -31,13 +52,13 @@ Install directly from the Smithery registry:
 npx @smithery/cli install monster-jobs
 ```
 
-### From NPM
+#### From NPM
 
 ```bash
 npm install -g mcp-monster-jobs
 ```
 
-### Manual Installation
+#### Manual Installation
 
 ```bash
 # Clone the repository
@@ -51,7 +72,7 @@ npm install
 chmod +x index.js
 ```
 
-## Usage
+## 💻 Usage
 
 ### Running the Server
 
@@ -65,6 +86,14 @@ node index.js
 # Development mode with debugging
 npm run dev
 ```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Port to run the server on | `3000` |
+| `CACHE_TTL` | Cache time-to-live in seconds | `3600` |
+| `DEBUG` | Enable debug logging | `false` |
 
 ### MCP Client Configuration
 
@@ -96,7 +125,7 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-## Tools
+## 🛠️ API Tools
 
 ### 1. search_monster_jobs
 
@@ -110,8 +139,13 @@ Search for jobs on Monster.com with various filters.
 - `limit` (optional): Maximum results to return (default: 10)
 
 **Example:**
-```
-Get me jobs for business admin near Winnetka within 5 miles
+```javascript
+search_monster_jobs({
+  "query": "business analyst",
+  "location": "Winnetka, IL",
+  "radius": 5,
+  "limit": 10
+})
 ```
 
 **Response includes:**
@@ -132,8 +166,10 @@ Get detailed information for a specific job from search results.
 - `job_id` (optional): Direct job ID if available
 
 **Example:**
-```
-Get me details for job number 1
+```javascript
+get_job_details({
+  "job_number": 1
+})
 ```
 
 **Response includes:**
@@ -144,10 +180,10 @@ Get me details for job number 1
 - Job type and employment information
 - Direct application URL
 
-## Example Usage Flow
+## 📊 Example Usage Flow
 
 1. **Search for jobs:**
-   ```
+   ```javascript
    search_monster_jobs({
      "query": "business analyst",
      "location": "Winnetka, IL",
@@ -157,13 +193,15 @@ Get me details for job number 1
    ```
 
 2. **Get details for a specific job:**
-   ```
+   ```javascript
    get_job_details({
      "job_number": 1
    })
    ```
 
-## Architecture
+## 🏗️ Architecture
+
+### Technical Components
 
 - **Web Scraping**: Uses Puppeteer for reliable web scraping
 - **Caching**: Implements smart caching for search results
@@ -171,11 +209,29 @@ Get me details for job number 1
 - **Rate Limiting**: Respectful scraping with proper delays
 - **Modularity**: Clean, maintainable code structure
 
-## Technical Details
+### System Diagram
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│             │    │             │    │             │
+│  MCP Client ├────►  MCP Server ├────►  Monster.com│
+│             │    │             │    │             │
+└─────────────┘    └──────┬──────┘    └─────────────┘
+                          │
+                   ┌──────▼──────┐
+                   │             │
+                   │    Cache    │
+                   │             │
+                   └─────────────┘
+```
+
+## 🔧 Technical Details
 
 ### Dependencies
 - `@modelcontextprotocol/sdk`: MCP protocol implementation
 - `puppeteer`: Headless Chrome automation
+- `node-cache`: In-memory caching system
+- `express`: HTTP server framework (for standalone mode)
 
 ### Browser Configuration
 - Headless mode for production
@@ -188,7 +244,7 @@ Get me details for job number 1
 - Job cards: `.job-search-results-style__JobCardWrap-sc-30547e5b-4`
 - Job details: Various data-testid selectors for reliable extraction
 
-## Error Handling
+## 🛡️ Error Handling
 
 The server includes comprehensive error handling for:
 - Network timeouts and failures
@@ -197,47 +253,58 @@ The server includes comprehensive error handling for:
 - Browser launch failures
 - Cache misses
 
-## Performance Considerations
+Error responses follow the MCP protocol specification with appropriate error codes and descriptive messages.
+
+## ⚡ Performance Considerations
 
 - **Caching**: Search results are cached to avoid repeated requests
 - **Batch Processing**: Efficient DOM queries for multiple job cards
 - **Memory Management**: Automatic cleanup of old cache entries
 - **Browser Reuse**: Proper browser lifecycle management
+- **Connection Pooling**: Reuse of network connections
 
-## Security
+## 🔒 Security
 
 - User agent rotation to avoid detection
 - No sensitive data storage
 - Sandbox-safe browser configuration
 - Input validation and sanitization
+- Rate limiting to respect service terms
 
-## Limitations
+## ⚠️ Limitations
 
 - Requires an active internet connection
 - Dependent on Monster.com's DOM structure
 - Rate limited by Monster.com's servers
 - Chrome/Chromium dependency via Puppeteer
+- May be affected by Monster.com's anti-scraping measures
 
-## Contributing
+## 🤝 Contributing
+
+We welcome contributions to improve the Monster Jobs MCP Server!
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Run tests (`npm test`)
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-## License
+Please read our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
-MIT License - see LICENSE file for details
+## 📄 License
 
-## Support
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
 
 For issues and questions:
-- Create an issue on GitHub
-- Check existing issues for solutions
+- [Create an issue](https://github.com/kdkiss/mcp-monster-jobs/issues/new) on GitHub
+- Check [existing issues](https://github.com/kdkiss/mcp-monster-jobs/issues) for solutions
 - Review Monster.com's robots.txt and terms of service
 
-## Changelog
+## 📝 Changelog
 
 ### v1.0.0
 - Initial release
@@ -246,3 +313,41 @@ For issues and questions:
 - Caching system
 - Error handling
 - Production-ready features
+
+## 📂 Repository Structure
+
+```
+mcp-monster-jobs/
+├── .github/
+│   └── workflows/           # CI/CD workflows
+├── assets/                  # Images and static files
+├── src/
+│   ├── api/                 # API endpoints
+│   ├── scrapers/            # Web scraping modules
+│   ├── utils/               # Utility functions
+│   └── index.js             # Main entry point
+├── tests/                   # Test suite
+├── .gitignore               # Git ignore file
+├── Dockerfile               # Docker configuration
+├── LICENSE                  # MIT License
+├── README.md                # This file
+├── package.json             # NPM package config
+└── smithery.yaml            # Smithery configuration
+```
+
+## 🔗 Links
+
+- **GitHub:** [https://github.com/kdkiss/mcp-monster-jobs](https://github.com/kdkiss/mcp-monster-jobs)
+- **NPM:** [https://www.npmjs.com/package/mcp-monster-jobs](https://www.npmjs.com/package/mcp-monster-jobs)
+- **Smithery:** [https://smithery.ai/packages/monster-jobs](https://smithery.ai/packages/monster-jobs)
+- **Issues:** [https://github.com/kdkiss/mcp-monster-jobs/issues](https://github.com/kdkiss/mcp-monster-jobs/issues)
+
+## 👥 Authors
+
+- **kdkiss** - *Initial work* - [GitHub Profile](https://github.com/kdkiss)
+
+## 🙏 Acknowledgments
+
+- Monster.com for providing job listing data
+- The MCP community for protocol standards
+- Contributors who have helped improve this project
