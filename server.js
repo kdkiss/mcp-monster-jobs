@@ -5,13 +5,24 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
 
+function timeoutSignal(ms) {
+  try {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      return AbortSignal.timeout(ms);
+    }
+  } catch {}
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
 const ListToolsRequestSchema = z.object({
-  method: z.literal('list_tools'),
+  method: z.literal('tools/list'),
   params: z.object({}).optional(),
 });
 
 const CallToolRequestSchema = z.object({
-  method: z.literal('call_tool'),
+  method: z.literal('tools/call'),
   params: z.object({
     name: z.string(),
     arguments: z.any(),
@@ -129,7 +140,8 @@ async function searchJobs(args) {
       const response = await fetch(searchUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
       if (!response.ok) {
@@ -270,7 +282,8 @@ async function getJobDetails(args) {
       const response = await fetch(targetJob.jobUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
       if (!response.ok) {
