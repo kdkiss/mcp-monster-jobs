@@ -3,6 +3,7 @@
 <div align="center">
 
 [![Smithery](https://img.shields.io/badge/Smithery-Compatible-blue)](https://smithery.ai)
+[![smithery badge](https://smithery.ai/badge/@kdkiss/mcp-monster-jobs)](https://smithery.ai/server/@kdkiss/mcp-monster-jobs)
 [![NPM Version](https://img.shields.io/npm/v/mcp-monster-jobs)](https://www.npmjs.com/package/mcp-monster-jobs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Issues](https://img.shields.io/github/issues/kdkiss/mcp-monster-jobs)](https://github.com/kdkiss/mcp-monster-jobs/issues)
@@ -69,7 +70,7 @@ cd mcp-monster-jobs
 npm install
 
 # Make the script executable (Linux/Mac)
-chmod +x index.js
+chmod +x monster_mcp_server.js
 ```
 
 ## 💻 Usage
@@ -81,7 +82,7 @@ chmod +x index.js
 npm start
 
 # Or run directly
-node index.js
+node monster_mcp_server.js
 
 # Development mode with debugging
 npm run dev
@@ -118,7 +119,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "monster-jobs": {
       "command": "node",
-      "args": ["/path/to/mcp-monster-jobs/index.js"],
+      "args": ["/path/to/mcp-monster-jobs/monster_mcp_server.js"],
       "env": {}
     }
   }
@@ -321,12 +322,7 @@ mcp-monster-jobs/
 ├── .github/
 │   └── workflows/           # CI/CD workflows
 ├── assets/                  # Images and static files
-├── src/
-│   ├── api/                 # API endpoints
-│   ├── scrapers/            # Web scraping modules
-│   ├── utils/               # Utility functions
-│   └── index.js             # Main entry point
-├── tests/                   # Test suite
+├── monster_mcp_server.js    # Main entry point
 ├── .gitignore               # Git ignore file
 ├── Dockerfile               # Docker configuration
 ├── LICENSE                  # MIT License
@@ -339,7 +335,7 @@ mcp-monster-jobs/
 
 - **GitHub:** [https://github.com/kdkiss/mcp-monster-jobs](https://github.com/kdkiss/mcp-monster-jobs)
 - **NPM:** [https://www.npmjs.com/package/mcp-monster-jobs](https://www.npmjs.com/package/mcp-monster-jobs)
-- **Smithery:** [https://smithery.ai/packages/monster-jobs](https://smithery.ai/packages/monster-jobs)
+- **Smithery:** [https://smithery.ai/server/@kdkiss/mcp-monster-jobs](https://smithery.ai/server/@kdkiss/mcp-monster-jobs)
 - **Issues:** [https://github.com/kdkiss/mcp-monster-jobs/issues](https://github.com/kdkiss/mcp-monster-jobs/issues)
 
 ## 👥 Authors
