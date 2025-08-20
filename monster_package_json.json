@@ -2,13 +2,13 @@
   "name": "mcp-monster-jobs",
   "version": "1.0.0",
   "description": "MCP Server for Monster.com job search functionality with advanced filtering and detailed job retrieval",
-  "main": "index.js",
+  "main": "monster_mcp_server.js",
   "bin": {
-    "mcp-monster-jobs": "./index.js"
+    "mcp-monster-jobs": "./monster_mcp_server.js"
   },
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --inspect index.js",
+    "start": "node monster_mcp_server.js",
+    "dev": "node --inspect monster_mcp_server.js",
     "test": "jest",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -41,7 +41,7 @@
     ],
     "server": {
       "command": "node",
-      "args": ["index.js"],
+      "args": ["monster_mcp_server.js"],
       "env": {}
     },
     "tools": [
@@ -76,7 +76,7 @@
   },
   "homepage": "https://github.com/kdkiss/mcp-monster-jobs#readme",
   "files": [
-    "index.js",
+    "monster_mcp_server.js",
     "README.md",
     "LICENSE",
     "package.json"

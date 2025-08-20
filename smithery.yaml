@@ -4,4 +4,4 @@ build:
 mcp:
   server:
     command: node
-    args: [index.js]
+    args: [monster_mcp_server.js]

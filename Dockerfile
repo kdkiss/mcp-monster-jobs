@@ -11,6 +11,6 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 RUN npm install --production
 
-COPY monster_mcp_server.js index.js
+COPY monster_mcp_server.js monster_mcp_server.js
 
 CMD ["npm", "start"]
