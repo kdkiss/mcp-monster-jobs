@@ -1,0 +1,7 @@
+version: 1
+build:
+  dockerfile: Dockerfile
+mcp:
+  server:
+    command: node
+    args: [index.js]
