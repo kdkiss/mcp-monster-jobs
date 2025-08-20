@@ -1,0 +1,77 @@
+name: mcp-monster-jobs
+displayName: Monster Jobs MCP Server
+description: Search and retrieve job listings from Monster.com with location filtering and detailed job information
+version: "1.0.0"
+author: kdkiss
+license: MIT
+category: productivity
+tags:
+  - jobs
+  - search
+  - careers
+  - employment
+  - mcp
+  - monster
+
+build:
+  dockerfile: Dockerfile
+  context: .
+
+runtime:
+  command: node
+  args: ["monster_mcp_server.js"]
+  env: {}
+  ports: []
+
+tools:
+  - name: search_monster_jobs
+    description: Search for jobs on Monster.com with location and radius filters
+    inputSchema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Job search query (e.g., "business analyst", "software engineer")
+        location:
+          type: string
+          description: Location to search (e.g., "Los Angeles, CA", "New York, NY")
+        radius:
+          type: number
+          description: Search radius in miles
+          default: 5
+        recency:
+          type: string
+          enum: ["today", "last+2+days", "last+week", "last+2+weeks"]
+          description: Job posting recency filter
+          default: "last+week"
+        limit:
+          type: number
+          description: Maximum number of results to return
+          default: 10
+      required:
+        - query
+        - location
+
+  - name: get_job_details
+    description: Get detailed information for a specific job from search results
+    inputSchema:
+      type: object
+      properties:
+        job_number:
+          type: number
+          description: The job number from search results (1-based index)
+        job_id:
+          type: string
+          description: Alternative: Direct job ID if available
+      required: []
+
+dependencies:
+  - name: Node.js
+    version: ">=18.0.0"
+    required: true
+
+repository:
+  type: git
+  url: https://github.com/kdkiss/mcp-monster-jobs.git
+
+homepage: https://github.com/kdkiss/mcp-monster-jobs#readme
