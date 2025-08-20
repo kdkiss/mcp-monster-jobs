@@ -1,0 +1,151 @@
+{
+  "$schema": "https://registry.smithery.ai/schema/server.json",
+  "name": "monster-jobs",
+  "displayName": "Monster Jobs",
+  "description": "Search and retrieve job listings from Monster.com with location filtering, salary information, and detailed job descriptions. Perfect for job seekers and recruiters.",
+  "version": "1.0.0",
+  "category": "productivity",
+  "tags": [
+    "jobs",
+    "search", 
+    "careers",
+    "employment",
+    "recruitment",
+    "monster",
+    "job-search"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "kdkiss",
+    "url": "https://github.com/kdkiss"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kdkiss/mcp-monster-jobs.git"
+  },
+  "homepage": "https://github.com/kdkiss/mcp-monster-jobs",
+  "documentation": "https://github.com/kdkiss/mcp-monster-jobs#readme",
+  "server": {
+    "type": "node",
+    "command": "node",
+    "args": ["index.js"],
+    "env": {},
+    "cwd": "."
+  },
+  "capabilities": {
+    "tools": [
+      {
+        "name": "search_monster_jobs",
+        "description": "Search for jobs on Monster.com with advanced filtering options including location, radius, and posting recency",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "required": true,
+            "description": "Job search query (e.g., 'business analyst', 'software engineer')"
+          },
+          {
+            "name": "location", 
+            "type": "string",
+            "required": true,
+            "description": "Location to search (e.g., 'Los Angeles, CA', 'New York, NY')"
+          },
+          {
+            "name": "radius",
+            "type": "number",
+            "required": false,
+            "description": "Search radius in miles (default: 5)"
+          },
+          {
+            "name": "recency",
+            "type": "string",
+            "required": false,
+            "description": "Job posting recency filter: today, last+2+days, last+week, last+2+weeks"
+          },
+          {
+            "name": "limit",
+            "type": "number", 
+            "required": false,
+            "description": "Maximum number of results to return (default: 10)"
+          }
+        ]
+      },
+      {
+        "name": "get_job_details",
+        "description": "Get comprehensive details for a specific job including full description, requirements, and application information",
+        "parameters": [
+          {
+            "name": "job_number",
+            "type": "number",
+            "required": false,
+            "description": "The job number from search results (1-based index)"
+          },
+          {
+            "name": "job_id",
+            "type": "string",
+            "required": false,
+            "description": "Alternative: Direct job ID if available"
+          }
+        ]
+      }
+    ]
+  },
+  "requirements": {
+    "node": ">=18.0.0",
+    "os": ["linux", "darwin", "win32"],
+    "arch": ["x64", "arm64"]
+  },
+  "installation": {
+    "npm": "mcp-monster-jobs",
+    "manual": {
+      "steps": [
+        "git clone https://github.com/kdkiss/mcp-monster-jobs.git",
+        "cd mcp-monster-jobs",
+        "npm install",
+        "chmod +x index.js"
+      ]
+    }
+  },
+  "configuration": {
+    "example": {
+      "mcpServers": {
+        "monster-jobs": {
+          "command": "node",
+          "args": ["/path/to/mcp-monster-jobs/index.js"],
+          "env": {}
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "Basic Job Search",
+      "description": "Search for business analyst jobs in Los Angeles",
+      "tool": "search_monster_jobs",
+      "parameters": {
+        "query": "business analyst",
+        "location": "Los Angeles, CA",
+        "radius": 10
+      }
+    },
+    {
+      "name": "Recent Jobs Search",
+      "description": "Find recently posted software engineer jobs",
+      "tool": "search_monster_jobs", 
+      "parameters": {
+        "query": "software engineer",
+        "location": "San Francisco, CA",
+        "recency": "today",
+        "limit": 5
+      }
+    },
+    {
+      "name": "Get Job Details",
+      "description": "Retrieve detailed information for the first job from search results",
+      "tool": "get_job_details",
+      "parameters": {
+        "job_number": 1
+      }
+    }
+  ]
+}

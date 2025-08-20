@@ -1,10 +1,10 @@
 {
-  "name": "monster-jobs-mcp-server",
+  "name": "mcp-monster-jobs",
   "version": "1.0.0",
-  "description": "MCP Server for Monster.com job search functionality",
+  "description": "MCP Server for Monster.com job search functionality with advanced filtering and detailed job retrieval",
   "main": "index.js",
   "bin": {
-    "monster-jobs-server": "./index.js"
+    "mcp-monster-jobs": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
@@ -15,14 +15,46 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "monster",
     "jobs",
-    "search",
+    "job-search",
+    "careers",
+    "employment",
+    "recruitment",
     "scraping",
-    "careers"
+    "automation"
   ],
-  "author": "Your Name",
+  "author": "kdkiss",
   "license": "MIT",
+  "mcp": {
+    "mcpVersion": "0.5.0",
+    "name": "monster-jobs",
+    "displayName": "Monster Jobs",
+    "description": "Search and retrieve job listings from Monster.com with location filtering and detailed job information",
+    "category": "productivity",
+    "tags": [
+      "jobs",
+      "search",
+      "careers",
+      "employment"
+    ],
+    "server": {
+      "command": "node",
+      "args": ["index.js"],
+      "env": {}
+    },
+    "tools": [
+      {
+        "name": "search_monster_jobs",
+        "description": "Search for jobs on Monster.com with location and radius filters"
+      },
+      {
+        "name": "get_job_details", 
+        "description": "Get detailed information for a specific job from search results"
+      }
+    ]
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "puppeteer": "^21.0.0"
@@ -33,14 +65,20 @@
     "prettier": "^3.0.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/monster-jobs-mcp-server.git"
+    "url": "https://github.com/kdkiss/mcp-monster-jobs.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/monster-jobs-mcp-server/issues"
+    "url": "https://github.com/kdkiss/mcp-monster-jobs/issues"
   },
-  "homepage": "https://github.com/yourusername/monster-jobs-mcp-server#readme"
+  "homepage": "https://github.com/kdkiss/mcp-monster-jobs#readme",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ]
 }

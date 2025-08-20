@@ -1,6 +1,10 @@
-# Monster.com Jobs MCP Server
+# Monster Jobs MCP Server
 
-A production-ready Model Context Protocol (MCP) server for searching and retrieving job listings from Monster.com. This server provides two main tools for job search functionality:
+[![Smithery](https://img.shields.io/badge/Smithery-Compatible-blue)](https://smithery.ai)
+[![NPM Version](https://img.shields.io/npm/v/mcp-monster-jobs)](https://www.npmjs.com/package/mcp-monster-jobs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A production-ready Model Context Protocol (MCP) server for searching and retrieving job listings from Monster.com. This server provides comprehensive job search functionality with advanced filtering options.
 
 1. **Search Jobs**: Find jobs based on query, location, and filters
 2. **Get Job Details**: Retrieve detailed information for specific job listings
@@ -19,10 +23,26 @@ A production-ready Model Context Protocol (MCP) server for searching and retriev
 
 ## Installation
 
+### From Smithery (Recommended)
+
+Install directly from the Smithery registry:
+
+```bash
+npx @smithery/cli install monster-jobs
+```
+
+### From NPM
+
+```bash
+npm install -g mcp-monster-jobs
+```
+
+### Manual Installation
+
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd monster-jobs-mcp-server
+git clone https://github.com/kdkiss/mcp-monster-jobs.git
+cd mcp-monster-jobs
 
 # Install dependencies
 npm install
@@ -48,14 +68,28 @@ npm run dev
 
 ### MCP Client Configuration
 
-Add this server to your MCP client configuration:
+#### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "monster-jobs": {
+      "command": "mcp-monster-jobs"
+    }
+  }
+}
+```
+
+#### Other MCP Clients
 
 ```json
 {
   "mcpServers": {
     "monster-jobs": {
       "command": "node",
-      "args": ["/path/to/monster-jobs-mcp-server/index.js"],
+      "args": ["/path/to/mcp-monster-jobs/index.js"],
       "env": {}
     }
   }

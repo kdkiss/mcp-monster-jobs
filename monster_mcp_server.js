@@ -9,7 +9,7 @@ class MonsterJobsServer {
   constructor() {
     this.server = new Server(
       {
-        name: 'monster-jobs-server',
+        name: 'monster-jobs',
         version: '1.0.0',
       },
       {
