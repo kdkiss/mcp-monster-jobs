@@ -1,274 +1,214 @@
-# Monster Job Search MCP Server
+# Monster.com Jobs MCP Server
 
-A Model Context Protocol (MCP) server for searching job listings on Monster.com. This server transforms job search functionality into a tool that can be used with MCP-compatible clients like Smithery, Claude Desktop, and other AI assistants.
+A production-ready Model Context Protocol (MCP) server for searching and retrieving job listings from Monster.com. This server provides two main tools for job search functionality:
 
-[![smithery badge](https://smithery.ai/badge/@kdkiss/mcp-monster)](https://smithery.ai/server/@kdkiss/mcp-monster)
+1. **Search Jobs**: Find jobs based on query, location, and filters
+2. **Get Job Details**: Retrieve detailed information for specific job listings
 
-## 🎯 Overview
+## Features
 
-**`mcp-monster`** is an MCP-compatible CLI module that fetches job listings from [Monster.com](https://www.monster.com) based on dynamic keywords and location parameters. It provides a standardized interface for AI assistants to access real-time job market data from one of the world’s largest job portals.
+- 🔍 Advanced job search with location and radius filtering
+- 📅 Recency filters (today, last 2 days, last week, last 2 weeks)
+- 💰 Salary information extraction
+- 📝 Detailed job descriptions and requirements
+- 🏢 Company information
+- 🌐 Direct job listing URLs
+- 💾 Smart caching for efficient detail retrieval
+- 🔄 Rate limiting and error handling
+- 🎯 Production-ready with proper error handling
 
-## ✨ Features
-
-* 🔍 **Multi-term Search**: Search job listings using multiple keywords simultaneously
-* 📍 **Location-based Search**: U.S. ZIP code or city-based targeting with configurable radius
-* 🎯 **Smart Filtering**: Duplicate job detection and removal
-* 🛡️ **Robust Error Handling**: Comprehensive logging and graceful failure recovery
-* 📊 **Structured Data**: Clean JSON output with job title, company, location, and direct links
-* 🔄 **Real-time Data**: Live scraping of Monster.com for current job postings
-* 🏗️ **MCP Compliant**: Full Model Context Protocol implementation
-* 🐳 **Docker Ready**: Containerized deployment support
-* 🔧 **Configurable**: Environment-based configuration for production use
-* 📝 **Follow-up Questions**: Get detailed job information after initial searches
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-* Python 3.8 or higher
-* pip package manager
-* Internet connection for Monster.com access
-
-### Installation Options
-
-#### Option 1: Smithery (Recommended)
+## Installation
 
 ```bash
-npx -y @smithery/cli install @kdkiss/mcp-monster --client claude
-```
-
-#### Option 2: Manual Installation
-
-```bash
+# Clone the repository
 git clone <repository-url>
-cd mcp-monster
-pip install -r requirements.txt
-chmod +x monster_server.py
+cd monster-jobs-mcp-server
+
+# Install dependencies
+npm install
+
+# Make the script executable (Linux/Mac)
+chmod +x index.js
 ```
 
-#### Option 3: Docker
+## Usage
+
+### Running the Server
 
 ```bash
-docker build -t mcp-monster .
-docker run -it mcp-monster
-```
+# Start the server
+npm start
 
-## 🔧 Configuration
+# Or run directly
+node index.js
+
+# Development mode with debugging
+npm run dev
+```
 
 ### MCP Client Configuration
 
-#### Smithery Configuration
+Add this server to your MCP client configuration:
 
 ```json
 {
   "mcpServers": {
-    "monster-job-search": {
-      "command": "python",
-      "args": ["/path/to/monster_server.py"],
-      "description": "Search for job listings on Monster.com",
-      "env": {
-        "LOG_LEVEL": "INFO",
-        "REQUEST_TIMEOUT": "10"
-      }
+    "monster-jobs": {
+      "command": "node",
+      "args": ["/path/to/monster-jobs-mcp-server/index.js"],
+      "env": {}
     }
   }
 }
 ```
 
-#### Claude Desktop Configuration
+## Tools
 
-```json
-{
-  "mcpServers": {
-    "monster-job-search": {
-      "command": "python",
-      "args": ["/absolute/path/to/monster_server.py"],
-      "env": {
-        "LOG_LEVEL": "DEBUG",
-        "USER_AGENT": "MCP-Monster-Bot/1.0"
-      }
-    }
-  }
-}
-```
+### 1. search_monster_jobs
 
-### Environment Variables
-
-| Variable          | Default          | Description                                 |
-| ----------------- | ---------------- | ------------------------------------------- |
-| `LOG_LEVEL`       | `INFO`           | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `REQUEST_TIMEOUT` | `10`             | HTTP request timeout in seconds             |
-| `USER_AGENT`      | `Mozilla/5.0...` | Custom User-Agent string                    |
-| `MAX_RETRIES`     | `3`              | Maximum retry attempts for failed requests  |
-| `CACHE_TTL`       | `300`            | Cache TTL in seconds (future feature)       |
-
-## 📖 Usage
-
-### Available Tools
-
-#### `search_jobs`
-
-Search for job listings using multiple search terms with optional location filtering.
+Search for jobs on Monster.com with various filters.
 
 **Parameters:**
+- `query` (required): Job search query (e.g., "business analyst", "software engineer")
+- `location` (required): Location to search (e.g., "Los Angeles, CA", "Winnetka, IL")
+- `radius` (optional): Search radius in miles (default: 5)
+- `recency` (optional): Job posting recency ("today", "last+2+days", "last+week", "last+2+weeks")
+- `limit` (optional): Maximum results to return (default: 10)
 
-* `search_terms` (array, optional): List of job search terms
+**Example:**
+```
+Get me jobs for business admin near Winnetka within 5 miles
+```
 
-  * Example: `["data scientist", "marketing manager"]`
-* `zip_code` (string, optional): U.S. postal code or city name
+**Response includes:**
+- Job number (for reference)
+- Job title
+- Company name
+- Location
+- Salary (if available)
+- Posting recency
+- Short description
 
-  * Example: `"94105"` (San Francisco), `"New York"`
-* `radius` (integer, optional): Search radius in miles
+### 2. get_job_details
 
-  * Default: `25`
-  * Range: 1–100 miles
-
-#### `get_job_details`
-
-Get detailed information about a specific job from previous search results.
+Get detailed information for a specific job from search results.
 
 **Parameters:**
+- `job_number` (optional): The job number from search results (1-based index)
+- `job_id` (optional): Direct job ID if available
 
-* `query` (string, required): Job title or company name to match against previous search results
-
-  * Example: `"Software Engineer"` or `"Amazon"`
-* `session_id` (string, required): Session ID from previous search results
-
-  * Example: `"550e8400-e29b-41d4-a716-446655440000"`
-
-### Example Usage
-
-#### Basic Search
-
-```json
-{
-  "tool": "search_jobs",
-  "parameters": {
-    "search_terms": ["software engineer", "developer"]
-  }
-}
+**Example:**
+```
+Get me details for job number 1
 ```
 
-#### Location-Specific Search
+**Response includes:**
+- Complete job description
+- Requirements and qualifications
+- Salary and benefits information
+- Company details
+- Job type and employment information
+- Direct application URL
 
-```json
-{
-  "tool": "search_jobs",
-  "parameters": {
-    "search_terms": ["marketing manager", "digital marketing"],
-    "zip_code": "94105",
-    "radius": 15
-  }
-}
-```
+## Example Usage Flow
 
-#### Specialized Search
+1. **Search for jobs:**
+   ```
+   search_monster_jobs({
+     "query": "business analyst",
+     "location": "Winnetka, IL",
+     "radius": 5,
+     "limit": 10
+   })
+   ```
 
-```json
-{
-  "tool": "search_jobs",
-  "parameters": {
-    "search_terms": ["fraud analyst", "compliance officer"],
-    "zip_code": "10001",
-    "radius": 50
-  }
-}
-```
+2. **Get details for a specific job:**
+   ```
+   get_job_details({
+     "job_number": 1
+   })
+   ```
 
-#### Follow-up Questions - Get Job Details
+## Architecture
 
-```json
-{
-  "tool": "get_job_details",
-  "parameters": {
-    "query": "Software Engineer",
-    "session_id": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
+- **Web Scraping**: Uses Puppeteer for reliable web scraping
+- **Caching**: Implements smart caching for search results
+- **Error Handling**: Comprehensive error handling and recovery
+- **Rate Limiting**: Respectful scraping with proper delays
+- **Modularity**: Clean, maintainable code structure
 
-### Sample Output
+## Technical Details
 
-#### Search Results
+### Dependencies
+- `@modelcontextprotocol/sdk`: MCP protocol implementation
+- `puppeteer`: Headless Chrome automation
 
-```
-Job Search Summary:
-Search Terms: fraud analyst, compliance officer
-Location: 10001 (±50mi)
-Total Jobs Found: 47
-Session ID: 550e8400-e29b-41d4-a716-446655440000
+### Browser Configuration
+- Headless mode for production
+- Custom user agent to avoid detection
+- Sandbox disabled for Docker compatibility
+- Network idle waiting for dynamic content
 
---- Results for 'fraud analyst' ---
+### Selectors Used
+- Search container: `#card-scroll-container`
+- Job cards: `.job-search-results-style__JobCardWrap-sc-30547e5b-4`
+- Job details: Various data-testid selectors for reliable extraction
 
-1. Senior Fraud Analyst
-   Company: JPMorgan Chase
-   Location: New York, NY
-   Description: Analyze transactions to detect fraud patterns...
-   Link: https://www.monster.com/jobs/search/?q=Senior-Fraud-Analyst&id=123456
+## Error Handling
 
-2. Fraud Detection Specialist
-   Company: Bank of America
-   Location: Charlotte, NC
-   Description: Responsible for real-time fraud monitoring...
-   Link: https://www.monster.com/jobs/search/?q=Fraud-Detection-Specialist&id=123457
-```
+The server includes comprehensive error handling for:
+- Network timeouts and failures
+- Missing DOM elements
+- Invalid search parameters
+- Browser launch failures
+- Cache misses
 
----
+## Performance Considerations
 
-## 🏗️ Technical Architecture
+- **Caching**: Search results are cached to avoid repeated requests
+- **Batch Processing**: Efficient DOM queries for multiple job cards
+- **Memory Management**: Automatic cleanup of old cache entries
+- **Browser Reuse**: Proper browser lifecycle management
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MCP Client    │────│  MCP Monster     │────│   Monster.com   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+## Security
 
-* **MonsterJobScraper** → Handles all Monster.com scraping
-* **JobDetailParser** → Extracts full job details
-* **SessionManager** → Tracks sessions and enables follow-up
+- User agent rotation to avoid detection
+- No sensitive data storage
+- Sandbox-safe browser configuration
+- Input validation and sanitization
 
----
+## Limitations
 
-## 🔒 Security & Best Practices
+- Requires an active internet connection
+- Dependent on Monster.com's DOM structure
+- Rate limited by Monster.com's servers
+- Chrome/Chromium dependency via Puppeteer
 
-*(same as before, applies globally)*
+## Contributing
 
-## ⚡ Performance Optimization
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-*(same as before, Monster.com-ready)*
+## License
 
-## 🧪 Development & Testing
+MIT License - see LICENSE file for details
 
-*(paths updated to `monster_server.py`)*
+## Support
 
-## 📊 Monitoring & Logging
+For issues and questions:
+- Create an issue on GitHub
+- Check existing issues for solutions
+- Review Monster.com's robots.txt and terms of service
 
-*(unchanged)*
+## Changelog
 
-## 🔧 Troubleshooting
-
-* No more references to German ZIPs or Stepstone, all U.S./global
-
-## 📄 License
-
-MIT License
-
-## 🆘 Support
-
-* [Monster.com](https://www.monster.com) – Job portal
-
-## 📈 Version History
-
-### v1.2.0 (Current)
-
-* **NEW**: Global Monster.com job search support
-* **NEW**: Follow-up questions feature with `get_job_details` tool
-* **ENHANCED**: Location search works with U.S. ZIP codes and city names
-
----
-
-**Made with ❤️ for the global job market**
-
----
-
-
+### v1.0.0
+- Initial release
+- Job search functionality
+- Job detail retrieval
+- Caching system
+- Error handling
+- Production-ready features
