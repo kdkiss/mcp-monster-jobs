@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
-import { Server as McpServer } from '@modelcontextprotocol/sdk/dist/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/dist/server/stdio.js';
+import { Server as McpServer, ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import puppeteer from 'puppeteer';
 
 const server = new McpServer({
   name: 'monster-jobs',
   version: '1.0.0'
+}, {
+  capabilities: {
+    tools: {}
+  }
 });
 
 const jobCache = new Map();
@@ -25,38 +29,77 @@ async function getBrowser() {
   return sharedBrowser;
 }
 
-server.registerTool(
-  'search_monster_jobs',
-  {
-    title: 'Search Monster Jobs',
-    description: 'Search for jobs on Monster.com with location and radius filters',
-    inputSchema: {
-      query: z.string().describe('Job search query (e.g., "business analyst", "software engineer")'),
-      location: z.string().describe('Location to search (e.g., "Los Angeles, CA", "New York, NY")'),
-      radius: z.number().default(5).describe('Search radius in miles'),
-      recency: z.enum(['today', 'last+2+days', 'last+week', 'last+2+weeks']).default('last+week').describe('Job posting recency filter'),
-      limit: z.number().default(10).describe('Maximum number of results to return')
-    }
-  },
-  async ({ query, location, radius = 5, recency = 'last+week', limit = 10 }) => {
-    return await searchJobs({ query, location, radius, recency, limit });
-  }
-);
+// Register tool handlers
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: 'search_monster_jobs',
+        description: 'Search for jobs on Monster.com with location and radius filters',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Job search query (e.g., "business analyst", "software engineer")'
+            },
+            location: {
+              type: 'string',
+              description: 'Location to search (e.g., "Los Angeles, CA", "New York, NY")'
+            },
+            radius: {
+              type: 'number',
+              description: 'Search radius in miles',
+              default: 5
+            },
+            recency: {
+              type: 'string',
+              enum: ['today', 'last+2+days', 'last+week', 'last+2+weeks'],
+              description: 'Job posting recency filter',
+              default: 'last+week'
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of results to return',
+              default: 10
+            }
+          },
+          required: ['query', 'location']
+        }
+      },
+      {
+        name: 'get_job_details',
+        description: 'Get detailed information for a specific job from search results',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            job_number: {
+              type: 'number',
+              description: 'The job number from search results (1-based index)'
+            },
+            job_id: {
+              type: 'string',
+              description: 'Alternative: Direct job ID if available'
+            }
+          }
+        }
+      }
+    ]
+  };
+});
 
-server.registerTool(
-  'get_job_details',
-  {
-    title: 'Get Job Details',
-    description: 'Get detailed information for a specific job from search results',
-    inputSchema: {
-      job_number: z.number().optional().describe('The job number from search results (1-based index)'),
-      job_id: z.string().optional().describe('Alternative: Direct job ID if available')
-    }
-  },
-  async ({ job_number, job_id }) => {
-    return await getJobDetails({ job_number, job_id });
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  switch (name) {
+    case 'search_monster_jobs':
+      return await searchJobs(args);
+    case 'get_job_details':
+      return await getJobDetails(args);
+    default:
+      throw new Error(`Unknown tool: ${name}`);
   }
-);
+});
 
 async function searchJobs(args) {
     const { query, location, radius = 5, recency = 'last+week', limit = 10 } = args;
