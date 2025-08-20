@@ -67,7 +67,7 @@ tools:
 
 dependencies:
   - name: Node.js
-    version: ">=18.0.0"
+    version: ">=20.0.0"
     required: true
 
 repository:
