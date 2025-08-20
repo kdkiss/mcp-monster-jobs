@@ -16,12 +16,24 @@ tags:
 build:
   dockerfile: Dockerfile
   context: .
+  timeout: 600
+  cache:
+    enabled: true
+    type: "buildkit"
+  args:
+    NODE_ENV: "production"
 
 runtime:
   command: node
   args: ["monster_mcp_server.js"]
-  env: {}
+  env:
+    NODE_ENV: "production"
   ports: []
+  healthCheck:
+    command: ["node", "-e", "console.log('healthy')"]
+    interval: 30
+    timeout: 10
+    retries: 3
 
 tools:
   - name: search_monster_jobs

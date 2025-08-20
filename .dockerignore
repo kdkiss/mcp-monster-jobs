@@ -10,3 +10,10 @@ coverage
 Dockerfile
 .dockerignore
 smithery.yaml
+*.log
+.DS_Store
+.vscode
+.idea
+*.tmp
+dist
+build
