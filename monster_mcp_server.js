@@ -4,7 +4,7 @@ import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import { z } from 'zod';
-import puppeteer from 'puppeteer';
+import cheerio from 'cheerio';
 
 const server = new McpServer({
   name: 'monster-jobs',
@@ -18,21 +18,9 @@ const server = new McpServer({
 const jobCache = new Map();
 const jobIndex = new Map(); // job_number -> job
 const jobIdIndex = new Map(); // job_id -> job
-let sharedBrowser = null;
-
-async function getBrowser() {
-  if (!sharedBrowser) {
-    sharedBrowser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    console.log('Launched Puppeteer browser instance');
-  }
-  return sharedBrowser;
-}
 
 // Register tool handlers
-server.setRequestHandler(McpServer.ListToolsRequestSchema, async () => {
+server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
@@ -90,7 +78,7 @@ server.setRequestHandler(McpServer.ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(McpServer.CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
   try {
@@ -123,88 +111,69 @@ async function searchJobs(args) {
     console.log(`Searching Monster jobs: ${query} in ${location}`);
     
     try {
-      const browser = await getBrowser();
-      
-      const page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-      
-      // Build search URL
       const searchUrl = buildSearchUrl(query, location, radius, recency);
+      console.log(`Fetching from: ${searchUrl}`);
       
-      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-      
-      // Wait for search results container
-      await page.waitForSelector('#card-scroll-container', { timeout: 15000 });
-      
-      // Extract job listings
-      const jobs = await page.evaluate((maxResults) => {
-        const jobCards = document.querySelectorAll('#card-scroll-container .job-search-results-style__JobCardWrap-sc-30547e5b-4');
-        const results = [];
-        
-        for (let i = 0; i < Math.min(jobCards.length, maxResults); i++) {
-          const card = jobCards[i];
-          
-          try {
-            // Extract job title
-            const titleElement = card.querySelector('[data-testid="jobTitle"]');
-            const title = titleElement?.textContent?.trim() || 'N/A';
-            const jobUrl = titleElement?.href || '';
-            
-            // Extract job ID from button or URL
-            const jobButton = card.querySelector('[data-testid="JobCardButton"]');
-            const jobId = jobButton?.getAttribute('data-job-id') || 
-                         jobUrl.match(/--([a-f0-9-]+)\?/)?.[1] || '';
-            
-            // Extract company
-            const company = card.querySelector('[data-testid="company"]')?.textContent?.trim() || 'N/A';
-            
-            // Extract location
-            const location = card.querySelector('[data-testid="jobDetailLocation"]')?.textContent?.trim() || 'N/A';
-            
-            // Extract posting date
-            const recency = card.querySelector('[data-testid="jobDetailDateRecency"]')?.textContent?.trim() || 'N/A';
-            
-            // Extract salary if available
-            const salaryElement = card.querySelector('[data-tagtype-testid="payTag"] .ds-tag-label');
-            const salary = salaryElement?.textContent?.trim() || 'Not specified';
-            
-            // Create short description from available info
-            let description = `${company} is hiring for a ${title} position in ${location}.`;
-            if (salary !== 'Not specified') {
-              description += ` Salary: ${salary}.`;
-            }
-            description += ` Posted: ${recency}.`;
-            
-            results.push({
-              jobNumber: i + 1,
-              title,
-              company,
-              location,
-              salary,
-              recency,
-              description,
-              jobId,
-              jobUrl: jobUrl.startsWith('//') ? 'https:' + jobUrl : jobUrl
-            });
-          } catch (error) {
-            // Skip failed job card parsing
-          }
+      const response = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch jobs: ${response.status} ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      const $ = cheerio.load(html);
+
+      const jobs = [];
+      $('#card-scroll-container .job-search-results-style__JobCardWrap-sc-30547e5b-4').slice(0, limit).each((i, el) => {
+        const card = $(el);
+        const titleElement = card.find('[data-testid="jobTitle"]');
+        const title = titleElement.text().trim() || 'N/A';
+        let jobUrl = titleElement.attr('href') || '';
+        if (jobUrl.startsWith('//')) {
+          jobUrl = 'https:' + jobUrl;
+        }
+
+        const jobButton = card.find('[data-testid="JobCardButton"]');
+        const jobId = jobButton.attr('data-job-id') || jobUrl.match(/--([a-f0-9-]+)\?/)?.[1] || '';
         
-        return results;
-      }, limit);
+        const company = card.find('[data-testid="company"]').text().trim() || 'N/A';
+        const location = card.find('[data-testid="jobDetailLocation"]').text().trim() || 'N/A';
+        const recency = card.find('[data-testid="jobDetailDateRecency"]').text().trim() || 'N/A';
+        const salary = card.find('[data-tagtype-testid="payTag"] .ds-tag-label').text().trim() || 'Not specified';
+
+        let description = `${company} is hiring for a ${title} position in ${location}.`;
+        if (salary !== 'Not specified') {
+          description += ` Salary: ${salary}.`;
+        }
+        description += ` Posted: ${recency}.`;
+
+        jobs.push({
+          jobNumber: i + 1,
+          title,
+          company,
+          location,
+          salary,
+          recency,
+          description,
+          jobId,
+          jobUrl
+        });
+      });
+
+      console.log(`Found ${jobs.length} jobs for: ${query} in ${location}`);
       
-      // Cache the results for detail retrieval
       const searchId = Date.now().toString();
       jobCache.set(searchId, jobs);
       
-      // Index jobs for fast lookup
       jobs.forEach(job => {
         jobIndex.set(job.jobNumber, job);
         if (job.jobId) jobIdIndex.set(job.jobId, job);
       });
       
-      // Clean old cache entries (keep last 10 searches)
       if (jobCache.size > 10) {
         const [oldestKey] = jobCache.keys();
         jobCache.delete(oldestKey);
@@ -236,6 +205,7 @@ async function searchJobs(args) {
       };
       
     } catch (error) {
+      console.error('Job search failed:', error);
       return {
         content: [
           {
@@ -257,7 +227,6 @@ async function getJobDetails(args) {
     
     let targetJob;
     
-    // Find job from indexed cache
     if (job_number) {
       targetJob = jobIndex.get(job_number);
     } else if (job_id) {
@@ -285,62 +254,43 @@ async function getJobDetails(args) {
     }
     
     try {
-      const browser = await getBrowser();
-      console.log(`Navigating to job URL: ${targetJob.jobUrl}`);
-      
-      const page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-      
-      await page.goto(targetJob.jobUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-      
-      // Wait for job details container
-      await page.waitForSelector('#__next > div.main-layout-styles__Layout-sc-86e48e0f-0 > div.job-openings-style__SmallJobViewWrapper-sc-b9f61078-0 > div', { timeout: 15000 });
-      
-      // Extract detailed job information
-      const jobDetails = await page.evaluate(() => {
-        const container = document.querySelector('#__next > div.main-layout-styles__Layout-sc-86e48e0f-0 > div.job-openings-style__SmallJobViewWrapper-sc-b9f61078-0 > div');
-        
-        if (!container) {
-          return { error: 'Job details container not found' };
+      console.log(`Fetching job URL: ${targetJob.jobUrl}`);
+      const response = await fetch(targetJob.jobUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        
-        // Extract various details
-        const title = container.querySelector('h1')?.textContent?.trim() || 'N/A';
-        const company = container.querySelector('[data-testid="company-name"]')?.textContent?.trim() || 'N/A';
-        
-        // Extract job description
-        const descriptionElement = container.querySelector('[data-testid="job-description"], .job-description, [class*="description"]');
-        const description = descriptionElement?.innerText?.trim() || 
-                           container.querySelector('div[class*="JobDescription"], div[class*="job-description"]')?.innerText?.trim() ||
-                           'Job description not available';
-        
-        // Extract requirements/qualifications
-        const requirementsElement = container.querySelector('[data-testid="job-requirements"], .job-requirements, [class*="requirements"]');
-        const requirements = requirementsElement?.innerText?.trim() || 'Requirements not specified';
-        
-        // Extract salary/compensation
-        const salaryElement = container.querySelector('[data-testid="salary"], .salary, [class*="salary"], [class*="pay"]');
-        const salary = salaryElement?.textContent?.trim() || 'Salary not specified';
-        
-        // Extract location
-        const locationElement = container.querySelector('[data-testid="job-location"], .job-location, [class*="location"]');
-        const location = locationElement?.textContent?.trim() || 'Location not specified';
-        
-        // Extract job type/employment type
-        const jobTypeElement = container.querySelector('[data-testid="job-type"], .job-type, [class*="employment"]');
-        const jobType = jobTypeElement?.textContent?.trim() || 'Job type not specified';
-        
-        return {
-          title,
-          company,
-          location,
-          salary,
-          jobType,
-          description,
-          requirements,
-          fullContent: container.innerText?.slice(0, 2000) // First 2000 chars as fallback
-        };
       });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch job details: ${response.status} ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      const $ = cheerio.load(html);
+
+      const container = $('#__next > div.main-layout-styles__Layout-sc-86e48e0f-0 > div.job-openings-style__SmallJobViewWrapper-sc-b9f61078-0 > div');
+      if (!container.length) {
+        return { error: 'Job details container not found' };
+      }
+
+      const title = container.find('h1').text().trim() || 'N/A';
+      const company = container.find('[data-testid="company-name"]').text().trim() || 'N/A';
+      const description = container.find('[data-testid="job-description"], .job-description, [class*="description"]').text().trim() || 'Job description not available';
+      const requirements = container.find('[data-testid="job-requirements"], .job-requirements, [class*="requirements"]').text().trim() || 'Requirements not specified';
+      const salary = container.find('[data-testid="salary"], .salary, [class*="salary"], [class*="pay"]').text().trim() || 'Salary not specified';
+      const location = container.find('[data-testid="job-location"], .job-location, [class*="location"]').text().trim() || 'Location not specified';
+      const jobType = container.find('[data-testid="job-type"], .job-type, [class*="employment"]').text().trim() || 'Job type not specified';
+
+      const jobDetails = {
+        title,
+        company,
+        location,
+        salary,
+        jobType,
+        description,
+        requirements,
+        fullContent: container.text().slice(0, 2000)
+      };
       
       return {
         content: [
@@ -358,6 +308,7 @@ async function getJobDetails(args) {
       };
       
     } catch (error) {
+      console.error('Failed to get job details:', error);
       return {
         content: [
           {
@@ -407,28 +358,4 @@ async function main() {
   }
 }
 
-// Cleanup function for graceful shutdown
-function cleanup() {
-  if (sharedBrowser) {
-    sharedBrowser.close()
-      .then(() => console.log('Browser closed during cleanup'))
-      .catch(err => console.error('Error closing browser:', err));
-    sharedBrowser = null;
-  }
-}
-
-// Handle process termination signals
-process.on('SIGINT', () => {
-  console.log('Received SIGINT - shutting down');
-  cleanup();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM - shutting down');
-  cleanup();
-  process.exit(0);
-});
-
-// Start the server
 main();
