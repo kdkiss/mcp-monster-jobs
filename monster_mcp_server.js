@@ -11,6 +11,19 @@ const server = new McpServer({
 });
 
 const jobCache = new Map();
+const jobIndex = new Map(); // job_number -> job
+const jobIdIndex = new Map(); // job_id -> job
+let sharedBrowser = null;
+
+async function getBrowser() {
+  if (!sharedBrowser) {
+    sharedBrowser = await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  }
+  return sharedBrowser;
+}
 
 server.registerTool(
   'search_monster_jobs',
@@ -50,16 +63,13 @@ async function searchJobs(args) {
     
     let browser;
     try {
-      browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
+      browser = await getBrowser();
       
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       
       // Build search URL
-      const searchUrl = this.buildSearchUrl(query, location, radius, recency);
+      const searchUrl = buildSearchUrl(query, location, radius, recency);
       
       await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       
@@ -117,7 +127,7 @@ async function searchJobs(args) {
               jobUrl: jobUrl.startsWith('//') ? 'https:' + jobUrl : jobUrl
             });
           } catch (error) {
-            console.error(`Error parsing job card ${i + 1}:`, error);
+            // Skip failed job card parsing
           }
         }
         
@@ -128,9 +138,15 @@ async function searchJobs(args) {
       const searchId = Date.now().toString();
       jobCache.set(searchId, jobs);
       
+      // Index jobs for fast lookup
+      jobs.forEach(job => {
+        jobIndex.set(job.jobNumber, job);
+        if (job.jobId) jobIdIndex.set(job.jobId, job);
+      });
+      
       // Clean old cache entries (keep last 10 searches)
       if (jobCache.size > 10) {
-        const oldestKey = jobCache.keys().next().value;
+        const [oldestKey] = jobCache.keys();
         jobCache.delete(oldestKey);
       }
       
@@ -172,10 +188,6 @@ async function searchJobs(args) {
           }
         ]
       };
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 
@@ -184,17 +196,11 @@ async function getJobDetails(args) {
     
     let targetJob;
     
-    // Find job from cache
+    // Find job from indexed cache
     if (job_number) {
-      for (const [searchId, jobs] of jobCache.entries()) {
-        targetJob = jobs.find(job => job.jobNumber === job_number);
-        if (targetJob) break;
-      }
+      targetJob = jobIndex.get(job_number);
     } else if (job_id) {
-      for (const [searchId, jobs] of jobCache.entries()) {
-        targetJob = jobs.find(job => job.jobId === job_id);
-        if (targetJob) break;
-      }
+      targetJob = jobIdIndex.get(job_id);
     }
     
     if (!targetJob) {
@@ -218,10 +224,7 @@ async function getJobDetails(args) {
     
     let browser;
     try {
-      browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
+      browser = await getBrowser();
       
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -311,10 +314,6 @@ async function getJobDetails(args) {
           }
         ]
       };
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 
