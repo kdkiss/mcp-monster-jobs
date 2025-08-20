@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { Server as McpServer, ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/server/index.js';
+import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import { z } from 'zod';
 import puppeteer from 'puppeteer';
 
@@ -31,7 +32,7 @@ async function getBrowser() {
 }
 
 // Register tool handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+server.setRequestHandler(McpServer.ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
@@ -89,7 +90,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(McpServer.CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
   try {
