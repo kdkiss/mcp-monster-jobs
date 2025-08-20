@@ -1,99 +1,51 @@
 #!/usr/bin/env node
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { CallToolRequestSchema, ListToolsRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
-const puppeteer = require('puppeteer');
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import puppeteer from 'puppeteer';
 
-class MonsterJobsServer {
-  constructor() {
-    this.server = new Server(
-      {
-        name: 'monster-jobs',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+const server = new McpServer({
+  name: 'monster-jobs',
+  version: '1.0.0'
+});
 
-    this.jobCache = new Map();
-    this.setupToolHandlers();
+const jobCache = new Map();
+
+server.registerTool(
+  'search_monster_jobs',
+  {
+    title: 'Search Monster Jobs',
+    description: 'Search for jobs on Monster.com with location and radius filters',
+    inputSchema: {
+      query: z.string().describe('Job search query (e.g., "business analyst", "software engineer")'),
+      location: z.string().describe('Location to search (e.g., "Los Angeles, CA", "New York, NY")'),
+      radius: z.number().default(5).describe('Search radius in miles'),
+      recency: z.enum(['today', 'last+2+days', 'last+week', 'last+2+weeks']).default('last+week').describe('Job posting recency filter'),
+      limit: z.number().default(10).describe('Maximum number of results to return')
+    }
+  },
+  async ({ query, location, radius = 5, recency = 'last+week', limit = 10 }) => {
+    return await searchJobs({ query, location, radius, recency, limit });
   }
+);
 
-  setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        {
-          name: 'search_monster_jobs',
-          description: 'Search for jobs on Monster.com with location and radius filters',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              query: {
-                type: 'string',
-                description: 'Job search query (e.g., "business analyst", "software engineer")',
-              },
-              location: {
-                type: 'string',
-                description: 'Location to search (e.g., "Los Angeles, CA", "New York, NY")',
-              },
-              radius: {
-                type: 'number',
-                description: 'Search radius in miles (default: 5)',
-                default: 5,
-              },
-              recency: {
-                type: 'string',
-                description: 'Job posting recency filter',
-                enum: ['today', 'last+2+days', 'last+week', 'last+2+weeks'],
-                default: 'last+week',
-              },
-              limit: {
-                type: 'number',
-                description: 'Maximum number of results to return (default: 10)',
-                default: 10,
-              },
-            },
-            required: ['query', 'location'],
-          },
-        },
-        {
-          name: 'get_job_details',
-          description: 'Get detailed information for a specific job from search results',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              job_number: {
-                type: 'number',
-                description: 'The job number from search results (1-based index)',
-              },
-              job_id: {
-                type: 'string',
-                description: 'Alternative: Direct job ID if available',
-              },
-            },
-            required: [],
-          },
-        },
-      ],
-    }));
-
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      switch (request.params.name) {
-        case 'search_monster_jobs':
-          return await this.searchJobs(request.params.arguments);
-        case 'get_job_details':
-          return await this.getJobDetails(request.params.arguments);
-        default:
-          throw new Error(`Unknown tool: ${request.params.name}`);
-      }
-    });
+server.registerTool(
+  'get_job_details',
+  {
+    title: 'Get Job Details',
+    description: 'Get detailed information for a specific job from search results',
+    inputSchema: {
+      job_number: z.number().optional().describe('The job number from search results (1-based index)'),
+      job_id: z.string().optional().describe('Alternative: Direct job ID if available')
+    }
+  },
+  async ({ job_number, job_id }) => {
+    return await getJobDetails({ job_number, job_id });
   }
+);
 
-  async searchJobs(args) {
+async function searchJobs(args) {
     const { query, location, radius = 5, recency = 'last+week', limit = 10 } = args;
     
     let browser;
@@ -174,12 +126,12 @@ class MonsterJobsServer {
       
       // Cache the results for detail retrieval
       const searchId = Date.now().toString();
-      this.jobCache.set(searchId, jobs);
+      jobCache.set(searchId, jobs);
       
       // Clean old cache entries (keep last 10 searches)
-      if (this.jobCache.size > 10) {
-        const oldestKey = this.jobCache.keys().next().value;
-        this.jobCache.delete(oldestKey);
+      if (jobCache.size > 10) {
+        const oldestKey = jobCache.keys().next().value;
+        jobCache.delete(oldestKey);
       }
       
       return {
@@ -227,19 +179,19 @@ class MonsterJobsServer {
     }
   }
 
-  async getJobDetails(args) {
+async function getJobDetails(args) {
     const { job_number, job_id } = args;
     
     let targetJob;
     
     // Find job from cache
     if (job_number) {
-      for (const [searchId, jobs] of this.jobCache.entries()) {
+      for (const [searchId, jobs] of jobCache.entries()) {
         targetJob = jobs.find(job => job.jobNumber === job_number);
         if (targetJob) break;
       }
     } else if (job_id) {
-      for (const [searchId, jobs] of this.jobCache.entries()) {
+      for (const [searchId, jobs] of jobCache.entries()) {
         targetJob = jobs.find(job => job.jobId === job_id);
         if (targetJob) break;
       }
@@ -253,7 +205,7 @@ class MonsterJobsServer {
             text: JSON.stringify({
               success: false,
               error: 'Job not found in cache. Please run a search first.',
-              available_jobs: Array.from(this.jobCache.values()).flat().map(job => ({
+              available_jobs: Array.from(jobCache.values()).flat().map(job => ({
                 jobNumber: job.jobNumber,
                 title: job.title,
                 company: job.company
@@ -366,7 +318,7 @@ class MonsterJobsServer {
     }
   }
 
-  buildSearchUrl(query, location, radius, recency) {
+function buildSearchUrl(query, location, radius, recency) {
     const baseUrl = 'https://www.monster.com/jobs/search';
     const params = new URLSearchParams({
       q: query,
@@ -383,17 +335,10 @@ class MonsterJobsServer {
     return `${baseUrl}?${params.toString()}`;
   }
 
-  async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error('Monster.com Jobs MCP server running on stdio');
-  }
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('Monster.com Jobs MCP server running on stdio');
 }
 
-// Run the server
-if (require.main === module) {
-  const server = new MonsterJobsServer();
-  server.run().catch(console.error);
-}
-
-module.exports = MonsterJobsServer;
+main().catch(console.error);
