@@ -12,19 +12,22 @@ startCommand:
         description: "Logging level for the server"
       request_timeout:
         type: "integer"
-        default: 10
+        default: 15
         minimum: 5
         maximum: 60
         description: "HTTP request timeout in seconds"
   exampleConfig:
     log_level: "INFO"
-    request_timeout: 10
+    request_timeout: 15
 build:
   dockerfile: "Dockerfile"
-  timeout: 300
+  timeout: 600  # Increased timeout for better reliability
 env:
   LOG_LEVEL: "INFO"
-  REQUEST_TIMEOUT: "10"
+  REQUEST_TIMEOUT: "15"
   USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
   MAX_RETRIES: "3"
   CACHE_TTL: "300"
+  # Add environment variables for better error handling
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"

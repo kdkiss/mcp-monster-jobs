@@ -7,29 +7,40 @@ A Model Context Protocol server for searching job listings on Monster.com
 
 import asyncio
 import logging
+import sys
+import os
 from typing import Any, Dict, List, Optional
+
+# Configure logging early
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("monster-server")
 
 try:
     import requests
     from bs4 import BeautifulSoup
     from urllib.parse import quote_plus
 except ImportError as e:
-    logging.error(f"Missing required dependency: {e}")
+    logger.error(f"Missing required dependency: {e}")
     raise
 
-from mcp.server.fastmcp import FastMCP
-from mcp.types import Resource, Tool, TextContent
-import mcp.types as types
+try:
+    from mcp.server.fastmcp import FastMCP
+    from mcp.types import Resource, Tool, TextContent
+    import mcp.types as types
+except ImportError as e:
+    logger.error(f"MCP SDK import failed: {e}")
+    logger.error("Please ensure mcp package is installed correctly")
+    raise
 
 try:
     from job_details_models import JobDetails
     from session_manager import session_manager
 except ImportError as e:
-    logging.error(f"Missing local module: {e}")
+    logger.error(f"Missing local module: {e}")
     raise
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("monster-server")
 
 
 class MonsterJobScraper:
@@ -53,7 +64,8 @@ class MonsterJobScraper:
 
     def fetch_job_listings(self, url: str) -> List[Dict[str, str]]:
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            logger.info(f"Fetching job listings from: {url}")
+            response = requests.get(url, headers=self.headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             container = soup.select_one("#card-scroll-container")
@@ -103,6 +115,9 @@ class MonsterJobScraper:
         except requests.RequestException as e:
             logger.error(f"Request failed for URL {url}: {e}")
             return []
+        except Exception as e:
+            logger.error(f"Unexpected error fetching job listings from {url}: {e}")
+            return []
 
     def search_jobs(
         self,
@@ -113,9 +128,13 @@ class MonsterJobScraper:
     ) -> Dict[str, List[Dict[str, str]]]:
         results: Dict[str, List[Dict[str, str]]] = {}
         for term in search_terms:
-            url = self.build_search_url(term, location, radius, recency)
-            jobs = self.fetch_job_listings(url)
-            results[term] = jobs
+            try:
+                url = self.build_search_url(term, location, radius, recency)
+                jobs = self.fetch_job_listings(url)
+                results[term] = jobs
+            except Exception as e:
+                logger.error(f"Error searching for term '{term}': {e}")
+                results[term] = []
         return results
 
 
@@ -129,7 +148,8 @@ class MonsterJobDetailParser:
 
     def parse_job_details(self, url: str) -> Optional[JobDetails]:
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            logger.info(f"Parsing job details from: {url}")
+            response = requests.get(url, headers=self.headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             container = soup.select_one(
@@ -166,6 +186,7 @@ class MonsterJobDetailParser:
             return None
 
 
+# Initialize MCP server
 mcp = FastMCP("monster-job-search")
 scraper = MonsterJobScraper()
 
@@ -175,13 +196,14 @@ async def search_jobs(
     search_terms: List[str],
     location: str,
     radius: int = 5,
-    recency: Optional[str] = None,
+    recency: Optional[str] = None
 ) -> str:
     """Search for job listings on Monster.com using multiple search terms"""
     if not isinstance(search_terms, list) or not search_terms:
         return "Error: search_terms must be a non-empty list of strings"
 
     try:
+        logger.info(f"Searching for jobs: terms={search_terms}, location={location}")
         results = scraper.search_jobs(search_terms, location, radius, recency)
         all_jobs: List[Dict[str, str]] = []
         for jobs in results.values():
@@ -226,6 +248,7 @@ async def get_job_details(job_query: str, session_id: Optional[str] = None) -> s
         return "Error: job_query must be a non-empty string"
 
     try:
+        logger.info(f"Getting job details: query={job_query}, session={session_id}")
         if session_id:
             job = session_manager.find_job_in_session(session_id, job_query)
         else:
