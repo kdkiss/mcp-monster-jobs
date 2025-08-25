@@ -1,14 +1,6 @@
-name: monster-jobs-mcp  
-  
-version: 1.0.0  
-  
-build:  
-  type: docker  
-  context: .  
-  dockerfile: Dockerfile  
-  
-runtime:  
-  type: http  
-  port: 5000  
-  health_check:  
-    path: /api/health 
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+startCommand:
+  type: "http"
