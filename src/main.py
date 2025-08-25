@@ -173,6 +173,8 @@ class MonsterJobsMCPServer:
 
     def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle tools/call request."""
+        print(f"MCP Debug - tools/call params: {params}")  # Debug logging
+
         tool_name = params.get("name")
         tool_args = params.get("arguments", {})
 
@@ -220,6 +222,7 @@ def handle_mcp_request():
     """Handle MCP JSON-RPC requests."""
     try:
         data = request.get_json()
+        print(f"MCP Debug - Request data: {data}")  # Debug logging
 
         if not data or "jsonrpc" not in data or data["jsonrpc"] != "2.0":
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}), 400
@@ -228,18 +231,16 @@ def handle_mcp_request():
         params = data.get("params", {})
         req_id = data.get("id")
 
-        # Route based on endpoint or method
-        path = request.path
-        if path == "/mcp":
-            if method == "initialize":
-                result = mcp_server.handle_initialize(params)
-            else:
-                return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": req_id}), 404
-        elif path == "/tools/list":
+        print(f"MCP Debug - Method: {method}, Params: {params}")  # Debug logging
+
+        # Handle all MCP methods on the /mcp endpoint
+        if method == "initialize":
+            result = mcp_server.handle_initialize(params)
+        elif method == "tools/list":
             result = mcp_server.handle_tools_list()
-        elif path == "/tools/call":
+        elif method == "tools/call":
             result = mcp_server.handle_tools_call(params)
-        elif path == "/resources/list":
+        elif method == "resources/list":
             result = mcp_server.handle_resources_list()
         else:
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": req_id}), 404
@@ -267,6 +268,11 @@ def tools_call():
 @app.route('/resources/list', methods=['POST'])
 def resources_list():
     """List available resources."""
+    return handle_mcp_request()
+
+@app.route('/jsonrpc', methods=['POST'])
+def jsonrpc_endpoint():
+    """Alternative JSON-RPC endpoint for MCP compatibility."""
     return handle_mcp_request()
 
 @app.route('/search', methods=['POST'])
