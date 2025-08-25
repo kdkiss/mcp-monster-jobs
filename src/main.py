@@ -136,7 +136,9 @@ class MonsterJobsMCPServer:
                         "max_jobs": {
                             "type": "integer",
                             "description": "Maximum number of jobs to return (default: 10)",
-                            "default": 10
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 50
                         }
                     },
                     "required": ["query"]
@@ -155,11 +157,16 @@ class MonsterJobsMCPServer:
 
     def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
+        print(f"MCP Initialize called with params: {params}")  # Debug logging
         return {
             "protocolVersion": "2024-11-05",
             "capabilities": {
-                "tools": {},
-                "resources": {}
+                "tools": {
+                    "listChanged": True
+                },
+                "resources": {
+                    "listChanged": True
+                }
             },
             "serverInfo": {
                 "name": "monster-jobs-mcp-server",
@@ -169,7 +176,13 @@ class MonsterJobsMCPServer:
 
     def handle_tools_list(self) -> Dict[str, Any]:
         """Handle tools/list request."""
+        print("MCP Debug - tools/list called")  # Debug logging
         return {"tools": self.tools}
+
+    def handle_resources_list(self) -> Dict[str, Any]:
+        """Handle resources/list request."""
+        print("MCP Debug - resources/list called")  # Debug logging
+        return {"resources": self.resources}
 
     def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle tools/call request."""
@@ -179,10 +192,38 @@ class MonsterJobsMCPServer:
         tool_args = params.get("arguments", {})
 
         if tool_name == "search_jobs":
-            result = self._search_jobs_tool(tool_args)
-            return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
+            try:
+                result = self._search_jobs_tool(tool_args)
+                print(f"MCP Debug - tool result: {result}")  # Debug logging
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(result, indent=2, ensure_ascii=False)
+                        }
+                    ]
+                }
+            except Exception as e:
+                print(f"MCP Debug - tool error: {e}")  # Debug logging
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Error executing tool: {str(e)}"
+                        }
+                    ],
+                    "isError": True
+                }
         else:
-            raise ValueError(f"Unknown tool: {tool_name}")
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Unknown tool: {tool_name}"
+                    }
+                ],
+                "isError": True
+            }
 
     def handle_resources_list(self) -> Dict[str, Any]:
         """Handle resources/list request."""
@@ -293,6 +334,22 @@ def mcp_config():
     print(f"MCP Config response: {config}")  # Debug logging
     return jsonify(config)
 
+@app.route('/test', methods=['GET'])
+def test_endpoint():
+    """Simple test endpoint to verify server is responding."""
+    return jsonify({
+        "status": "ok",
+        "message": "MCP server is running",
+        "endpoints": [
+            "/mcp",
+            "/tools/list",
+            "/tools/call",
+            "/resources/list",
+            "/.well-known/mcp-config",
+            "/health"
+        ]
+    })
+
 @app.route('/search', methods=['POST'])
 def search_jobs():
     """Search for jobs on Monster.com based on user query."""
@@ -330,4 +387,12 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print(f"Starting MCP server on port {port}")  # Debug logging
+    print("MCP server endpoints available:")
+    print(f"  - /mcp (MCP JSON-RPC)")
+    print(f"  - /tools/list (List tools)")
+    print(f"  - /tools/call (Call tools)")
+    print(f"  - /resources/list (List resources)")
+    print(f"  - /.well-known/mcp-config (MCP configuration)")
+    print(f"  - /health (Health check)")
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
