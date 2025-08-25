@@ -9,6 +9,58 @@ from typing import Dict, Any, List, Optional
 from flask import Flask, request, jsonify
 from src.routes.monster_jobs import parse_query, construct_search_url, scrape_monster_jobs
 
+# Import MCP for decorator usage
+try:
+    from mcp import MCP, mcp
+except ImportError:
+    # Fallback if MCP library is not available
+    mcp = None
+    MCP = None
+
+# MCP Tool using decorator
+if mcp:
+    @mcp.tool()
+    def search_monster_jobs(query: str, max_jobs: int = 10) -> str:
+        """Search for job listings on Monster.com using natural language queries.
+
+        Args:
+            query: Natural language job search query (e.g., 'hr admin jobs near winnetka within 5 miles')
+            max_jobs: Maximum number of jobs to return (default: 10)
+
+        Returns:
+            JSON string containing job search results
+        """
+        try:
+            # Parse the query
+            job_title, location, distance = parse_query(query)
+
+            # Construct search URL
+            search_url = construct_search_url(job_title, location, distance)
+
+            # Scrape jobs
+            jobs = scrape_monster_jobs(search_url, max_jobs)
+
+            # Format response
+            result = {
+                "query": query,
+                "parsed": {
+                    "job_title": job_title,
+                    "location": location,
+                    "distance": distance
+                },
+                "search_url": search_url,
+                "jobs": jobs,
+                "total_found": len(jobs)
+            }
+
+            return json.dumps(result, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "error": f"Job search failed: {str(e)}",
+                "query": query
+            })
+
 
 class MCPServer:
     """MCP Server implementation for Monster Jobs."""
