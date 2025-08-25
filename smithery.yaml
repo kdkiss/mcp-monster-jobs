@@ -5,8 +5,8 @@ project:
 
 build:
   type: "python"
-  python_version: "3.9"
-  entrypoint: "main.py"
+  python_version: "3.11"
+  entrypoint: "src/main.py"
   port: 5000
 
 mcp:
