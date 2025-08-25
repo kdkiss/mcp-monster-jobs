@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Jobs MCP Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-form {
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            margin: 20px 0;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .job-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background-color: #fafafa;
+        }
+        .job-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .job-company {
+            color: #666;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .job-location {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .job-summary {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .job-link {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .job-link:hover {
+            background-color: #218838;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .example {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        .example h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Monster Jobs MCP Server</h1>
+        
+        <div class="example">
+            <h3>Example Queries:</h3>
+            <ul>
+                <li>"hr admin jobs near winnetka within 5 miles"</li>
+                <li>"software engineer jobs near san francisco within 10 miles"</li>
+                <li>"marketing manager jobs near chicago within 15 miles"</li>
+            </ul>
+        </div>
+        
+        <div class="search-form">
+            <div class="form-group">
+                <label for="query">Job Search Query:</label>
+                <input type="text" id="query" placeholder="e.g., hr admin jobs near winnetka within 5 miles" value="hr admin jobs near winnetka within 5 miles">
+            </div>
+            <div class="form-group">
+                <label for="maxJobs">Maximum Jobs to Return:</label>
+                <input type="number" id="maxJobs" min="1" max="20" value="10">
+            </div>
+            <button onclick="searchJobs()" id="searchBtn">Search Jobs</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            Searching for jobs...
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        async function searchJobs() {
+            const query = document.getElementById('query').value.trim();
+            const maxJobs = parseInt(document.getElementById('maxJobs').value) || 10;
+            
+            if (!query) {
+                showError('Please enter a job search query.');
+                return;
+            }
+            
+            const searchBtn = document.getElementById('searchBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            
+            // Show loading state
+            searchBtn.disabled = true;
+            loading.style.display = 'block';
+            results.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        max_jobs: maxJobs
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Search failed');
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                showError('Error searching for jobs: ' + error.message);
+            } finally {
+                searchBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+        
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            
+            if (!data.jobs || data.jobs.length === 0) {
+                results.innerHTML = '<div class="info">No jobs found for your search query.</div>';
+                return;
+            }
+            
+            let html = `
+                <div class="info">
+                    <strong>Search Results:</strong><br>
+                    Query: ${data.query}<br>
+                    Parsed: ${data.parsed.job_title} near ${data.parsed.location} within ${data.parsed.distance} miles<br>
+                    Found: ${data.total_found} jobs
+                </div>
+            `;
+            
+            data.jobs.forEach(job => {
+                html += `
+                    <div class="job-card">
+                        <div class="job-title">${escapeHtml(job.title)}</div>
+                        <div class="job-company">${escapeHtml(job.company)}</div>
+                        <div class="job-location">${escapeHtml(job.location)}</div>
+                        <div class="job-summary">${escapeHtml(job.summary)}</div>
+                        <a href="${escapeHtml(job.link)}" target="_blank" class="job-link">View Job Details</a>
+                    </div>
+                `;
+            });
+            
+            results.innerHTML = html;
+        }
+        
+        function showError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Allow Enter key to trigger search
+        document.getElementById('query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchJobs();
+            }
+        });
+    </script>
+</body>
+</html>
