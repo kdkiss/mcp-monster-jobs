@@ -1,0 +1,23 @@
+runtime: "container"
+startCommand:
+  type: "http"
+  configSchema:
+    type: "object"
+    properties:
+      max_jobs:
+        type: "integer"
+        title: "Maximum Jobs"
+        description: "Maximum number of jobs to return per search (default: 10)"
+        default: 10
+        minimum: 1
+        maximum: 50
+    required: []
+  exampleConfig:
+    max_jobs: 10
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+env:
+  FLASK_ENV: "production"
+  PYTHONPATH: "/app"
+
