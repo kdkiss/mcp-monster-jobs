@@ -1,23 +1,7 @@
-project:
-  name: "monster-jobs-mcp-server"
-  version: "1.0.0"
-  description: "MCP server for searching Monster.com jobs"
-
+# smithery.yaml
+runtime: "container"
 build:
-  type: "python"
-  python_version: "3.11"
-  entrypoint: "src/main.py"
-  port: 5000
-
-mcp:
-  enabled: true
-  server_name: "monster-jobs-mcp-server"
-  capabilities:
-    - "tools"
-    - "resources"
-
-dependencies:
-  - beautifulsoup4==4.13.4
-  - flask==3.1.1
-  - flask-cors==6.0.0
-  - requests==2.32.5
+  dockerfile: "Dockerfile"           # Path to your Dockerfile
+  dockerBuildPath: "."               # Docker build context
+startCommand:
+  type: "http"
