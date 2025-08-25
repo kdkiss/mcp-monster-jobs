@@ -7,9 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_ENV=production \
     FLASK_DEBUG=false
 
-# Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
 # Set working directory
 WORKDIR /app
 
@@ -22,13 +19,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application source code
 COPY src/ ./src/
-
-# Create database directory and ensure proper permissions
-RUN mkdir -p src/database && \
-    chown -R appuser:appuser /app
-
-# Switch to non-root user
-USER appuser
 
 # Expose port for smithery.com compatibility
 EXPOSE 5000
