@@ -1,29 +1,134 @@
 # Monster Jobs MCP Server
 
-A Smithery MCP (Model Context Protocol) server for retrieving job listings from Monster.com with natural language search queries.
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://python.org)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-## Overview
+A production-ready **Model Context Protocol (MCP)** server that enables AI assistants to search and retrieve job listings from Monster.com using natural language queries.
 
-This MCP server provides a simple API endpoint that allows users to search for jobs using natural language queries like "hr admin jobs near winnetka within 5 miles". The server parses the query to extract job title, location, and distance parameters, then attempts to scrape job listings from Monster.com.
+## 🌟 Key Features
 
-## Features
+- **🤖 MCP Integration**: Full Model Context Protocol support for seamless AI assistant integration
+- **🔍 Natural Language Search**: Parse complex queries like "software engineer jobs near San Francisco within 10 miles"
+- **⚡ High Performance**: Optimized with uv package manager and Alpine Linux base image
+- **🔒 Production Ready**: Comprehensive error handling and structured responses
+- **📊 Dual API Support**: Both MCP protocol and traditional REST endpoints
+- **🐳 Containerized**: Docker deployment with optimized multi-stage builds
 
-- **Natural Language Query Parsing**: Automatically extracts job title, location, and distance from user queries
-- **Flexible Search Parameters**: Supports various query formats and distance specifications
-- **JSON API Response**: Returns structured job data including title, company, location, summary, and job links
-- **Web Interface**: Includes a user-friendly web interface for testing and demonstration
-- **Health Check Endpoint**: Provides server status monitoring
+## 📋 Table of Contents
 
-## API Endpoints
+- [Quick Start](#-quick-start)
+- [MCP Integration](#-mcp-integration)
+- [API Reference](#-api-reference)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Development](#-development)
+- [Deployment](#-deployment)
 
-### POST /api/search
+## 🚀 Quick Start
 
-Search for jobs based on a natural language query.
+### Using with MCP Clients
 
-**Request Body:**
+```python
+# Example MCP tool usage
+import requests
+
+# Search for jobs using the MCP server
+response = requests.post("http://localhost:5000/tools/call", json={
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+        "name": "search_jobs",
+        "arguments": {
+            "query": "software engineer jobs near San Francisco within 10 miles",
+            "max_jobs": 5
+        }
+    }
+})
+```
+
+### Using REST API
+
+```bash
+curl -X POST http://localhost:5000/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "data scientist jobs near New York within 15 miles"}'
+```
+
+## 🤖 MCP Integration
+
+### Available Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `search_jobs` | Search Monster.com jobs using natural language | `query`, `max_jobs` |
+
+### Tool Schema
+
 ```json
 {
-  "query": "hr admin jobs near winnetka within 5 miles",
+  "name": "search_jobs",
+  "description": "Search for jobs on Monster.com based on a natural language query",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Natural language query describing the job search"
+      },
+      "max_jobs": {
+        "type": "integer",
+        "description": "Maximum number of jobs to return (default: 10)"
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+## 📖 API Reference
+
+### MCP Endpoints
+
+#### `POST /mcp`
+Initialize MCP connection and get server capabilities.
+
+#### `POST /tools/list`
+List available tools.
+
+**Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "tools": [
+      {
+        "name": "search_jobs",
+        "description": "Search for jobs on Monster.com based on a natural language query",
+        "inputSchema": { "...": "..." }
+      }
+    ]
+  },
+  "id": 1
+}
+```
+
+#### `POST /tools/call`
+Execute a tool with given parameters.
+
+#### `POST /resources/list`
+List available resources.
+
+### REST Endpoints
+
+#### `POST /search`
+Search for jobs using natural language query.
+
+**Request:**
+```json
+{
+  "query": "software engineer jobs near San Francisco within 10 miles",
   "max_jobs": 10
 }
 ```
@@ -31,29 +136,28 @@ Search for jobs based on a natural language query.
 **Response:**
 ```json
 {
-  "query": "hr admin jobs near winnetka within 5 miles",
+  "query": "software engineer jobs near San Francisco within 10 miles",
   "parsed": {
-    "job_title": "hr admin",
-    "location": "winnetka",
-    "distance": 5
+    "job_title": "software engineer",
+    "location": "San Francisco",
+    "distance": 10
   },
-  "search_url": "https://www.monster.com/jobs/search?q=hr%20admin&where=winnetka&rd=5&page=1&so=m.h.sh",
+  "search_url": "https://www.monster.com/jobs/search?q=software%20engineer&where=San%20Francisco&rd=10&page=1&so=m.h.sh",
   "jobs": [
     {
-      "title": "Human Resources Administrator",
-      "company": "ABC Corporation",
-      "location": "Winnetka, CA",
-      "summary": "Position available in Winnetka, CA. Click the link for full job details and requirements.",
-      "link": "https://www.monster.com/job-openings/..."
+      "title": "Senior Software Engineer",
+      "company": "Tech Corp",
+      "location": "San Francisco, CA",
+      "summary": "Position available in San Francisco, CA. Click the link for full job details.",
+      "link": "https://www.monster.com/job/..."
     }
   ],
   "total_found": 1
 }
 ```
 
-### GET /api/health
-
-Health check endpoint that returns server status.
+#### `GET /health`
+Health check endpoint.
 
 **Response:**
 ```json
@@ -63,151 +167,271 @@ Health check endpoint that returns server status.
 }
 ```
 
-## Query Format Examples
+## 💡 Usage Examples
 
-The server supports various natural language query formats:
+### Natural Language Queries
 
-- `"hr admin jobs near winnetka within 5 miles"`
-- `"software engineer jobs near san francisco within 10 miles"`
-- `"marketing manager jobs near chicago within 15 miles"`
-- `"data analyst jobs near new york within 20 miles"`
+The server intelligently parses various natural language query formats:
 
-## Installation and Setup
+```bash
+# Location-based searches
+"software engineer jobs near San Francisco within 10 miles"
+"marketing manager jobs near Chicago within 15 miles"
+"data analyst jobs near New York within 20 miles"
+
+# Title-focused searches
+"hr admin jobs near winnetka within 5 miles"
+"senior developer jobs near Austin within 25 miles"
+"product manager jobs near Seattle within 15 miles"
+
+# Flexible formatting
+"jobs as a nurse near Boston within 30 miles"
+"find me accounting positions near Denver within 20 miles"
+```
+
+### Advanced Query Patterns
+
+```bash
+# Specific job titles
+"senior software engineer jobs near San Francisco"
+"junior marketing coordinator jobs near New York"
+
+# Distance variations
+"developer jobs near Chicago within 5 miles"
+"analyst jobs near Boston within 50 miles"
+
+# Location variations
+"engineer jobs in downtown Seattle within 10 miles"
+"manager jobs near Silicon Valley within 15 miles"
+```
+
+## 🛠️ Installation
 
 ### Prerequisites
 
-- Python 3.11+
-- pip (Python package manager)
+- **Python 3.12+**
+- **uv** package manager ([install uv](https://github.com/astral-sh/uv))
 
 ### Local Development
 
-1. Clone or download the project files
-2. Navigate to the project directory:
-   ```bash
-   cd monster_jobs_mcp
-   ```
+```bash
+# Clone the repository
+git clone <repository-url>
+cd monster-jobs-mcp-server
 
-3. Activate the virtual environment:
-   ```bash
-   source venv/bin/activate
-   ```
+# Install dependencies using uv
+uv sync
 
-4. Install dependencies (if not already installed):
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Start the development server
+uv run python src/main.py
+```
 
-5. Start the development server:
-   ```bash
-   python src/main.py
-   ```
+The server will start on `http://localhost:5000`
 
-6. Access the web interface at `http://localhost:5000`
+### Docker Deployment
 
-### Dependencies
+```bash
+# Build the container
+docker build -t monster-jobs-mcp .
 
-The server requires the following Python packages:
+# Run the container
+docker run -p 5000:5000 monster-jobs-mcp
+```
 
-- Flask: Web framework for the API server
-- BeautifulSoup4: HTML parsing for web scraping
-- Requests: HTTP client for making web requests
-- SQLAlchemy: Database ORM (included in template)
+## ⚙️ Configuration
 
-## Technical Architecture
+### Environment Variables
 
-### Web Scraping Logic
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5000` | Server port |
+| `HOST` | `0.0.0.0` | Server host binding |
 
-The server uses the following approach to scrape Monster.com:
+### Smithery Configuration
 
-1. **Query Parsing**: Uses regular expressions to extract job title, location, and distance from natural language queries
-2. **URL Construction**: Builds Monster.com search URLs with appropriate parameters
-3. **HTML Fetching**: Uses the requests library with proper User-Agent headers
-4. **Content Parsing**: Employs BeautifulSoup to extract job information using CSS selectors
+The `smithery.yaml` file contains deployment configuration:
 
-### CSS Selectors Used
+```yaml
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+startCommand:
+  type: "http"
+```
 
-Based on the provided Monster.com structure:
+## 🔧 Development
 
-- **Search Results Container**: `#card-scroll-container`
-- **Job Cards**: `div.job-search-results-style__JobCardWrap-sc-30547e5b-4`
-- **Job Title**: `a[data-testid="jobTitle"]`
-- **Company Name**: `span[data-testid="company"]`
-- **Job Location**: `span[data-testid="jobDetailLocation"]`
+### Project Structure
 
-## Limitations and Considerations
+```
+├── src/
+│   ├── main.py           # Main MCP server application
+│   └── test_mcp.py       # MCP server tests
+├── pyproject.toml        # Project dependencies and configuration
+├── uv.lock              # Dependency lock file
+├── Dockerfile           # Container build configuration
+├── smithery.yaml        # Smithery deployment configuration
+└── README.md           # This file
+```
 
-### Anti-Bot Protection
+### Running Tests
 
-Monster.com implements various anti-bot measures that may prevent successful scraping:
+```bash
+# Run MCP server tests
+uv run python src/test_mcp.py
+```
 
-- **CAPTCHA Challenges**: The site may present verification challenges for automated requests
-- **Rate Limiting**: Excessive requests may result in temporary IP blocking
-- **Dynamic Content**: Some job listings may be loaded via JavaScript, making them inaccessible to basic scraping
+### Development Dependencies
 
-### Legal and Ethical Considerations
+```bash
+# Install development dependencies
+uv sync --dev
+```
 
-- **Terms of Service**: Web scraping may violate Monster.com's terms of service
-- **Rate Limiting**: The server includes delays between requests to be respectful to Monster.com's servers
-- **Alternative Approaches**: Consider using official APIs or job aggregation services for production use
+## 🚀 Deployment
 
-### Reliability
+### Smithery MCP Deployment
 
-- **Selector Changes**: Monster.com may change their HTML structure, breaking the scraping logic
-- **Geographic Limitations**: Search results may vary based on the server's geographic location
-- **Data Accuracy**: Scraped data may not always be complete or up-to-date
+1. **Connect to Smithery**: Ensure your repository is connected to Smithery
+2. **Configure Build**: The `smithery.yaml` handles automatic deployment
+3. **Deploy**: Push to your main branch to trigger deployment
+4. **Verify**: Check that MCP tools are discoverable
 
-## Error Handling
+### Manual Deployment
 
-The server implements comprehensive error handling:
+```bash
+# Using Docker
+docker build -t monster-jobs-mcp .
+docker run -p 5000:5000 monster-jobs-mcp
 
-- **Invalid Queries**: Returns appropriate error messages for malformed requests
-- **Network Errors**: Handles connection timeouts and HTTP errors gracefully
-- **Parsing Errors**: Continues processing even if individual job cards fail to parse
-- **Empty Results**: Returns structured responses even when no jobs are found
+# Using uv directly
+uv sync
+uv run python src/main.py
+```
 
-## Deployment Options
+### Production Considerations
 
-### Local Deployment
+- **Rate Limiting**: Implement request rate limiting for production use
+- **Caching**: Add caching layer for improved performance
+- **Monitoring**: Implement proper logging and monitoring
+- **Security**: Use HTTPS in production environments
 
-The server can be run locally for development and testing purposes using the built-in Flask development server.
+## 🏗️ Architecture
 
-### Production Deployment
+### System Components
 
-For production use, consider:
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   MCP Client    │────│  MCP Server      │────│  Monster.com    │
+│                 │    │                  │    │                 │
+│ • AI Assistants │    │ • Query Parser   │    │ • Job Listings  │
+│ • Tools         │    │ • URL Builder    │    │ • Search API    │
+│ • Resources     │    │ • Web Scraper    │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
 
-- **WSGI Server**: Use Gunicorn or uWSGI instead of the Flask development server
-- **Reverse Proxy**: Deploy behind Nginx or Apache for better performance
-- **Docker**: Containerize the application for easier deployment
-- **Environment Variables**: Use environment variables for configuration
+### Core Processing Pipeline
 
-### Smithery MCP Integration
+1. **Query Analysis**: Natural language processing to extract job parameters
+2. **URL Construction**: Build Monster.com search URLs with proper parameters
+3. **Web Scraping**: Extract job data using BeautifulSoup and CSS selectors
+4. **Data Structuring**: Format results into MCP-compliant response format
+5. **Error Handling**: Comprehensive error handling with graceful degradation
 
-This server is designed to be compatible with the Smithery MCP ecosystem, allowing it to be easily integrated with AI agents and other applications that support the Model Context Protocol.
+### MCP Protocol Implementation
 
-## Contributing
+- **Server Capabilities**: Tools and resources discovery
+- **Tool Execution**: JSON-RPC 2.0 compliant tool calling
+- **Resource Listing**: Available resources enumeration
+- **Error Handling**: Standardized MCP error responses
 
-When contributing to this project:
+## ⚠️ Important Notes
 
-1. Ensure all dependencies are listed in `requirements.txt`
-2. Follow Python PEP 8 style guidelines
-3. Add appropriate error handling for new features
-4. Update documentation for any API changes
-5. Test thoroughly with various query formats
+### Limitations
 
-## License
+- **Rate Limiting**: Monster.com may block requests exceeding rate limits
+- **Geographic Variation**: Results may vary by server location
+- **Dynamic Content**: Some listings may require JavaScript rendering
+- **Selector Stability**: HTML structure changes may break scraping
 
-This project is provided as-is for educational and demonstration purposes. Please ensure compliance with Monster.com's terms of service and applicable laws when using this software.
+### Ethical Considerations
 
-## Support
+- **Respectful Scraping**: Includes delays and proper headers
+- **Terms Compliance**: Users must comply with Monster.com's terms
+- **Educational Use**: Designed for learning and demonstration
+- **Production Alternatives**: Consider official APIs for production use
 
-For issues or questions:
+## 🤝 Contributing
 
-1. Check the server logs for error messages
-2. Verify that Monster.com is accessible from your network
-3. Test with different query formats
-4. Consider rate limiting if experiencing connection issues
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## Disclaimer
+### Development Setup
 
-This software is provided for educational purposes only. The authors are not responsible for any violations of terms of service or other legal issues that may arise from using this software. Users should ensure compliance with all applicable laws and website terms of service before using this tool.
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/monster-jobs-mcp-server.git
+cd monster-jobs-mcp-server
+
+# Install development dependencies
+uv sync --dev
+
+# Run tests
+uv run python src/test_mcp.py
+
+# Start development server
+uv run python src/main.py
+```
+
+### Code Standards
+
+- **PEP 8**: Follow Python style guidelines
+- **Type Hints**: Use type annotations for better code clarity
+- **Documentation**: Update README and docstrings for changes
+- **Testing**: Add tests for new functionality
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+### Troubleshooting
+
+**Server won't start:**
+- Check Python 3.12+ installation
+- Verify port 5000 is available
+- Review logs for error messages
+
+**MCP scanning fails:**
+- Ensure server is running on correct port
+- Check MCP endpoint responses
+- Verify JSON-RPC 2.0 compliance
+
+**No job results:**
+- Test Monster.com accessibility
+- Check query format
+- Review server logs for scraping errors
+
+### Getting Help
+
+- **Issues**: [GitHub Issues](https://github.com/your-username/monster-jobs-mcp-server/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/monster-jobs-mcp-server/discussions)
+- **Documentation**: Check this README and inline code documentation
+
+## ⚖️ Disclaimer
+
+This software is provided for educational and demonstration purposes only. Users are responsible for complying with Monster.com's terms of service and applicable laws. The authors are not responsible for any violations or legal issues that may arise from using this software.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the MCP ecosystem**
+
+[⭐ Star us on GitHub](https://github.com/your-username/monster-jobs-mcp-server) •
+[📖 Documentation](https://github.com/your-username/monster-jobs-mcp-server#readme) •
+[🐛 Report Issues](https://github.com/your-username/monster-jobs-mcp-server/issues)
+
+</div>
 
