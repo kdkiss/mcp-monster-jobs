@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Monster Jobs Search API
-A simple Flask API for searching jobs on Monster.com
+Monster Jobs MCP Server
+A Model Context Protocol server for searching jobs on Monster.com
 """
 
 import os
 import re
 import requests
 import time
+import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from bs4 import BeautifulSoup
 from urllib.parse import quote, urljoin
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 
 # Create Flask app
 app = Flask(__name__)
@@ -117,6 +118,156 @@ def scrape_monster_jobs(search_url: str, max_jobs: int = 10) -> List[Dict[str, s
     except Exception as e:
         print(f"Error scraping Monster jobs: {str(e)}")
         return []
+
+# MCP Server Implementation
+class MonsterJobsMCPServer:
+    def __init__(self):
+        self.tools = [
+            {
+                "name": "search_jobs",
+                "description": "Search for jobs on Monster.com based on a natural language query",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Natural language query describing the job search (e.g., 'software engineer jobs near New York within 25 miles')"
+                        },
+                        "max_jobs": {
+                            "type": "integer",
+                            "description": "Maximum number of jobs to return (default: 10)",
+                            "default": 10
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }
+        ]
+
+        self.resources = [
+            {
+                "uri": "monster://jobs/search",
+                "name": "Monster Jobs Search",
+                "description": "Search jobs on Monster.com",
+                "mimeType": "application/json"
+            }
+        ]
+
+    def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle MCP initialize request."""
+        return {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {},
+                "resources": {}
+            },
+            "serverInfo": {
+                "name": "monster-jobs-mcp-server",
+                "version": "1.0.0"
+            }
+        }
+
+    def handle_tools_list(self) -> Dict[str, Any]:
+        """Handle tools/list request."""
+        return {"tools": self.tools}
+
+    def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle tools/call request."""
+        tool_name = params.get("name")
+        tool_args = params.get("arguments", {})
+
+        if tool_name == "search_jobs":
+            result = self._search_jobs_tool(tool_args)
+            return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
+        else:
+            raise ValueError(f"Unknown tool: {tool_name}")
+
+    def handle_resources_list(self) -> Dict[str, Any]:
+        """Handle resources/list request."""
+        return {"resources": self.resources}
+
+    def _search_jobs_tool(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the search_jobs tool."""
+        query = args.get("query", "")
+        max_jobs = args.get("max_jobs", 10)
+
+        if not query:
+            return {"error": "Query parameter is required"}
+
+        try:
+            job_title, location, distance = parse_query(query)
+            search_url = construct_search_url(job_title, location, distance)
+            jobs = scrape_monster_jobs(search_url, max_jobs)
+
+            return {
+                "query": query,
+                "parsed": {
+                    "job_title": job_title,
+                    "location": location,
+                    "distance": distance
+                },
+                "search_url": search_url,
+                "jobs": jobs,
+                "total_found": len(jobs)
+            }
+        except Exception as e:
+            return {"error": f"Search failed: {str(e)}"}
+
+# Initialize MCP server
+mcp_server = MonsterJobsMCPServer()
+
+def handle_mcp_request():
+    """Handle MCP JSON-RPC requests."""
+    try:
+        data = request.get_json()
+
+        if not data or "jsonrpc" not in data or data["jsonrpc"] != "2.0":
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}), 400
+
+        method = data.get("method")
+        params = data.get("params", {})
+        req_id = data.get("id")
+
+        # Route based on endpoint or method
+        path = request.path
+        if path == "/mcp":
+            if method == "initialize":
+                result = mcp_server.handle_initialize(params)
+            else:
+                return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": req_id}), 404
+        elif path == "/tools/list":
+            result = mcp_server.handle_tools_list()
+        elif path == "/tools/call":
+            result = mcp_server.handle_tools_call(params)
+        elif path == "/resources/list":
+            result = mcp_server.handle_resources_list()
+        else:
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": req_id}), 404
+
+        return jsonify({"jsonrpc": "2.0", "result": result, "id": req_id})
+
+    except Exception as e:
+        return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": data.get("id") if 'data' in locals() else None}), 500
+
+@app.route('/mcp', methods=['POST'])
+def mcp_endpoint():
+    """MCP JSON-RPC endpoint."""
+    return handle_mcp_request()
+
+@app.route('/tools/list', methods=['POST'])
+def tools_list():
+    """List available tools."""
+    return handle_mcp_request()
+
+@app.route('/tools/call', methods=['POST'])
+def tools_call():
+    """Call a tool."""
+    return handle_mcp_request()
+
+@app.route('/resources/list', methods=['POST'])
+def resources_list():
+    """List available resources."""
+    return handle_mcp_request()
 
 @app.route('/search', methods=['POST'])
 def search_jobs():

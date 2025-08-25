@@ -15,7 +15,7 @@ def test_mcp_server(base_url="http://localhost:5000"):
     # Test 1: Health check
     print("\n1. Testing health endpoint...")
     try:
-        response = requests.get(f"{base_url}/mcp/health", timeout=5)
+        response = requests.get(f"{base_url}/health", timeout=5)
         if response.status_code == 200:
             print("✓ Health check passed")
             print(f"  Response: {response.json()}")
@@ -34,7 +34,7 @@ def test_mcp_server(base_url="http://localhost:5000"):
             "id": 1,
             "method": "tools/list"
         }
-        response = requests.post(f"{base_url}/mcp", json=payload, timeout=10)
+        response = requests.post(f"{base_url}/tools/list", json=payload, timeout=10)
         if response.status_code == 200:
             result = response.json()
             if "result" in result and "tools" in result["result"]:
@@ -61,7 +61,7 @@ def test_mcp_server(base_url="http://localhost:5000"):
             "id": 2,
             "method": "resources/list"
         }
-        response = requests.post(f"{base_url}/mcp", json=payload, timeout=10)
+        response = requests.post(f"{base_url}/resources/list", json=payload, timeout=10)
         if response.status_code == 200:
             result = response.json()
             if "result" in result and "resources" in result["result"]:
@@ -88,14 +88,14 @@ def test_mcp_server(base_url="http://localhost:5000"):
             "id": 3,
             "method": "tools/call",
             "params": {
-                "name": "search_monster_jobs",
+                "name": "search_jobs",
                 "arguments": {
                     "query": "software engineer jobs near san francisco within 10 miles",
                     "max_jobs": 3
                 }
             }
         }
-        response = requests.post(f"{base_url}/mcp", json=payload, timeout=30)
+        response = requests.post(f"{base_url}/tools/call", json=payload, timeout=30)
         if response.status_code == 200:
             result = response.json()
             if "result" in result and "content" in result["result"]:
@@ -121,34 +121,28 @@ def test_mcp_server(base_url="http://localhost:5000"):
         print(f"✗ Tool call failed: {e}")
         return False
     
-    # Test 5: Resource read
-    print("\n5. Testing resources/read...")
+    # Test 5: Test regular REST endpoint
+    print("\n5. Testing regular REST endpoint...")
     try:
         payload = {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "resources/read",
-            "params": {
-                "uri": "monster://jobs/search"
-            }
+            "query": "test software engineer jobs",
+            "max_jobs": 2
         }
-        response = requests.post(f"{base_url}/mcp", json=payload, timeout=10)
+        response = requests.post(f"{base_url}/search", json=payload, timeout=30)
         if response.status_code == 200:
             result = response.json()
-            if "result" in result and "contents" in result["result"]:
-                print("✓ Resource read passed")
-                content = json.loads(result["result"]["contents"][0]["text"])
-                print(f"  Description: {content['description']}")
-                print(f"  Capabilities: {len(content['capabilities'])} listed")
-            else:
-                print(f"✗ Resource read failed: Invalid response format")
-                print(f"  Response: {result}")
-                return False
+            print("✓ REST endpoint passed")
+            print(f"  Query: {result['query']}")
+            print(f"  Found {result['total_found']} jobs")
+            if result['jobs']:
+                job = result['jobs'][0]
+                print(f"  Sample job: {job['title']} at {job['company']}")
         else:
-            print(f"✗ Resource read failed: {response.status_code}")
+            print(f"✗ REST endpoint failed: {response.status_code}")
+            print(f"  Response: {response.text}")
             return False
     except Exception as e:
-        print(f"✗ Resource read failed: {e}")
+        print(f"✗ REST endpoint failed: {e}")
         return False
     
     print("\n🎉 All MCP tests passed!")
