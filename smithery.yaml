@@ -1,7 +1,22 @@
 # smithery.yaml
 runtime: "container"
+
 build:
-  dockerfile: "Dockerfile"           # Path to your Dockerfile
-  dockerBuildPath: "."               # Docker build context
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+
 startCommand:
   type: "http"
+  port: 8081
+
+mcp:
+  enabled: true
+  serverName: "monster-jobs-mcp-server"
+  configEndpoint: "/.well-known/mcp-config"
+  capabilities:
+    - "tools"
+    - "resources"
+
+env:
+  PORT: "8081"
+  FLASK_ENV: "production"

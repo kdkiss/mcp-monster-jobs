@@ -275,6 +275,24 @@ def jsonrpc_endpoint():
     """Alternative JSON-RPC endpoint for MCP compatibility."""
     return handle_mcp_request()
 
+@app.route('/.well-known/mcp-config', methods=['GET'])
+def mcp_config():
+    """MCP configuration endpoint for service discovery."""
+    print("MCP Config endpoint called")  # Debug logging
+
+    # Get the actual host from the request
+    host = request.host_url.rstrip('/')
+    config = {
+        "mcpServers": {
+            "monster-jobs": {
+                "url": f"{host}/mcp",
+                "transport": "http"
+            }
+        }
+    }
+    print(f"MCP Config response: {config}")  # Debug logging
+    return jsonify(config)
+
 @app.route('/search', methods=['POST'])
 def search_jobs():
     """Search for jobs on Monster.com based on user query."""
@@ -311,5 +329,5 @@ def health_check():
     return jsonify({'status': 'healthy', 'service': 'Monster Jobs API'})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
     app.run(host='0.0.0.0', port=port, debug=True)
