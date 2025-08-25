@@ -4,4 +4,4 @@ WORKDIR /app
 COPY . .
 RUN pip install -r requirements.txt
 
-CMD ["python", "mcp_server.py"]
+CMD ["python", "main.py"]
