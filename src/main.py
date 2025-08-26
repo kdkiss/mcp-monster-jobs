@@ -37,6 +37,15 @@ def safe_jsonify(data, status_code=200):
         response.status_code = 500
         return response
 
+# Create Flask app
+app = Flask(__name__)
+CORS(app, resources={
+    r"/mcp*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/tools/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/resources/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
+})
+
 # Add error handling wrapper for all routes
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -52,15 +61,6 @@ def handle_exception(e):
         "type": type(e).__name__,
         "status": "error"
     }), 500
-
-# Create Flask app
-app = Flask(__name__)
-CORS(app, resources={
-    r"/mcp*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
-    r"/tools/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
-    r"/resources/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
-    r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
-})
 
 # Add basic request logging for debugging
 @app.before_request
