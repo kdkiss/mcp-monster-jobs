@@ -17,6 +17,22 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote, urljoin
 from typing import List, Dict, Tuple, Any
 
+# Add error handling wrapper for all routes
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global exception handler to ensure proper JSON responses."""
+    print(f"[ERROR] Unhandled exception: {e}")
+    import traceback
+    traceback.print_exc()
+    
+    # Return JSON error response
+    return jsonify({
+        "error": "Internal server error",
+        "message": str(e),
+        "type": type(e).__name__,
+        "status": "error"
+    }), 500
+
 # Create Flask app
 app = Flask(__name__)
 CORS(app, resources={
@@ -288,49 +304,84 @@ def handle_mcp_request():
         # Set a reasonable timeout for request processing
         start_time = time.time()
         
+        # Handle empty request body
+        if request.content_length == 0:
+            print("[MCP] Warning: Empty request body received")
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Empty request body"}, "id": None}), 400
+        
         data = request.get_json(force=True)
+        print(f"[MCP] Request data: {data}")
 
         if not data:
+            print("[MCP] Error: No JSON data received")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: No JSON data received"}, "id": None}), 400
         
         if "jsonrpc" not in data or data["jsonrpc"] != "2.0":
+            print(f"[MCP] Error: Invalid jsonrpc version: {data.get('jsonrpc')}")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing or invalid jsonrpc version"}, "id": data.get("id")}), 400
 
         method = data.get("method")
         if not method:
+            print("[MCP] Error: Missing method in request")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing method"}, "id": data.get("id")}), 400
         
         params = data.get("params", {})
         req_id = data.get("id")
+        print(f"[MCP] Processing method: {method}, params: {params}, id: {req_id}")
 
         # Handle all MCP methods on the /mcp endpoint
         result = None
-        if method == "initialize":
-            result = mcp_server.handle_initialize(params)
-        elif method == "notifications/initialized":
-            # This is a notification, no response needed
-            mcp_server.handle_notifications_initialized(params)
-            return "", 204  # No content response for notifications
-        elif method == "tools/list":
-            result = mcp_server.handle_tools_list()
-        elif method == "tools/call":
-            result = mcp_server.handle_tools_call(params)
-        elif method == "resources/list":
-            result = mcp_server.handle_resources_list()
-        else:
-            return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}), 404
+        try:
+            if method == "initialize":
+                result = mcp_server.handle_initialize(params)
+                print(f"[MCP] Initialize result: {result}")
+            elif method == "notifications/initialized":
+                # This is a notification, no response needed
+                mcp_server.handle_notifications_initialized(params)
+                print("[MCP] Handled notifications/initialized")
+                return "", 204  # No content response for notifications
+            elif method == "tools/list":
+                result = mcp_server.handle_tools_list()
+                print(f"[MCP] Tools list result: {result}")
+            elif method == "tools/call":
+                result = mcp_server.handle_tools_call(params)
+                print(f"[MCP] Tools call result: {result}")
+            elif method == "resources/list":
+                result = mcp_server.handle_resources_list()
+                print(f"[MCP] Resources list result: {result}")
+            else:
+                print(f"[MCP] Unknown method: {method}")
+                return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}), 404
+        except Exception as method_error:
+            print(f"[MCP] Method execution error: {method_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Method execution error: {str(method_error)}"}, "id": req_id}), 500
 
         # Check for timeout
         elapsed_time = time.time() - start_time
         if elapsed_time > 25:  # 25 second timeout
+            print(f"[MCP] Request timeout after {elapsed_time} seconds")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": "Request timeout"}, "id": req_id}), 504
 
+        # Ensure result is JSON serializable
+        try:
+            json.dumps(result)
+        except TypeError as e:
+            print(f"[MCP] Result serialization error: {e}")
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Result serialization error: {str(e)}"}, "id": req_id}), 500
+
         response_data = {"jsonrpc": "2.0", "result": result, "id": req_id}
+        print(f"[MCP] Sending response: {response_data}")
         return jsonify(response_data)
 
     except json.JSONDecodeError as e:
+        print(f"[MCP] JSON decode error: {e}")
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": f"Parse error: {str(e)}"}, "id": None}), 400
     except Exception as e:
+        print(f"[MCP] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
         error_id = data.get("id") if 'data' in locals() and data else None
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": error_id}), 500
 
@@ -430,6 +481,28 @@ def initialize():
     """Initialize endpoint for MCP compatibility."""
     return handle_mcp_request()
 
+@app.route('/mcp/server-info', methods=['GET'])
+def mcp_server_info():
+    """Return basic MCP server information."""
+    try:
+        info = {
+            "name": "monster-jobs-mcp-server",
+            "version": "1.0.0",
+            "description": "MCP server for searching jobs on Monster.com",
+            "protocol": "mcp",
+            "protocolVersion": "2024-11-05",
+            "transport": "http",
+            "status": "ready",
+            "healthy": True
+        }
+        return jsonify(info)
+    except Exception as e:
+        print(f"[SERVER-INFO] Error: {e}")
+        return jsonify({
+            "error": "Failed to get server info",
+            "message": str(e)
+        }), 500
+
 @app.route('/test', methods=['GET'])
 def test_endpoint():
     """Simple test endpoint to verify server is responding."""
@@ -480,9 +553,11 @@ def search_jobs():
 def mcp_scan():
     """Dedicated endpoint for capability scanning and testing."""
     try:
+        print(f"[SCAN] MCP scan request: {request.method} from {request.remote_addr}")
+        
         if request.method == 'GET':
             # Return server capabilities for GET requests
-            return jsonify({
+            capabilities = {
                 "name": "monster-jobs-mcp-server",
                 "version": "1.0.0",
                 "description": "Search job listings on Monster.com using natural language queries",
@@ -532,14 +607,120 @@ def mcp_scan():
                     "scan": "/mcp/scan"
                 },
                 "status": "ready"
-            })
+            }
+            
+            # Ensure response is JSON serializable
+            try:
+                json.dumps(capabilities)
+                print("[SCAN] Successfully serialized capabilities response")
+            except Exception as serialization_error:
+                print(f"[SCAN] Serialization error: {serialization_error}")
+                return jsonify({
+                    "error": "Serialization error",
+                    "message": str(serialization_error),
+                    "status": "error"
+                }), 500
+            
+            return jsonify(capabilities)
         else:
             # Handle POST requests as MCP JSON-RPC calls
+            print("[SCAN] Handling POST request as MCP JSON-RPC")
             return handle_mcp_request()
+            
     except Exception as e:
-        print(f"MCP Scan error: {e}")
-        return jsonify({
+        print(f"[SCAN] MCP Scan error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return a proper JSON error response
+        error_response = {
             "error": "Scan endpoint error",
+            "message": str(e),
+            "status": "error",
+            "type": type(e).__name__
+        }
+        
+        try:
+            json.dumps(error_response)
+        except:
+            # Fallback if even the error response can't be serialized
+            error_response = {
+                "error": "Scan endpoint error",
+                "message": "Unknown serialization error",
+                "status": "error"
+            }
+        
+        return jsonify(error_response), 500
+
+@app.route('/mcp/capabilities', methods=['GET'])
+def mcp_capabilities():
+    """Return MCP server capabilities for scanning."""
+    try:
+        print("[CAPABILITIES] MCP capabilities request received")
+        
+        capabilities = {
+            "protocolVersion": "2024-11-05",
+            "serverInfo": {
+                "name": "monster-jobs-mcp-server",
+                "version": "1.0.0",
+                "description": "MCP server for searching jobs on Monster.com"
+            },
+            "capabilities": {
+                "tools": {
+                    "listChanged": True
+                },
+                "resources": {
+                    "listChanged": True
+                },
+                "prompts": {},
+                "logging": {}
+            },
+            "tools": [
+                {
+                    "name": "search_jobs",
+                    "description": "Search for jobs on Monster.com based on a natural language query",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Natural language query describing the job search (e.g., 'software engineer jobs near New York within 25 miles')"
+                            },
+                            "max_jobs": {
+                                "type": "integer",
+                                "description": "Maximum number of jobs to return (default: 10)",
+                                "default": 10,
+                                "minimum": 1,
+                                "maximum": 50
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            ],
+            "resources": [
+                {
+                    "uri": "monster://jobs/search",
+                    "name": "Monster Jobs Search",
+                    "description": "Search jobs on Monster.com",
+                    "mimeType": "application/json"
+                }
+            ]
+        }
+        
+        # Validate JSON serialization
+        json.dumps(capabilities)
+        print("[CAPABILITIES] Successfully prepared capabilities response")
+        
+        return jsonify(capabilities)
+        
+    except Exception as e:
+        print(f"[CAPABILITIES] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "error": "Failed to retrieve capabilities",
             "message": str(e),
             "status": "error"
         }), 500
@@ -587,26 +768,38 @@ def smithery_info():
 @app.route('/status', methods=['GET'])
 def status():
     """Simple status endpoint for quick server validation."""
-    return {'status': 'ok', 'service': 'monster-jobs-mcp-server', 'ready': True}, 200
+    try:
+        return jsonify({'status': 'ok', 'service': 'monster-jobs-mcp-server', 'ready': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @app.route('/ping', methods=['GET'])
 def ping():
     """Quick ping endpoint for connectivity testing."""
-    return {'status': 'pong'}, 200
+    try:
+        return jsonify({'status': 'pong'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @app.route('/ready', methods=['GET'])
 def readiness_probe():
     """Readiness probe endpoint for container orchestration."""
-    return {'status': 'ready'}, 200
+    try:
+        return jsonify({'status': 'ready'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return {
-        'status': 'healthy', 
-        'service': 'Monster Jobs MCP Server',
-        'version': '1.0.0'
-    }, 200
+    try:
+        return jsonify({
+            'status': 'healthy', 
+            'service': 'Monster Jobs MCP Server',
+            'version': '1.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 if __name__ == '__main__':
     try:
