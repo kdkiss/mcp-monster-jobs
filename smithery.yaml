@@ -9,8 +9,9 @@ startCommand:
   type: "http"
   port: 8081
   healthCheck:
-    path: "/health"
+    path: "/ready"
     expectedStatus: 200
+    timeoutSeconds: 10
 
 mcp:
   enabled: true

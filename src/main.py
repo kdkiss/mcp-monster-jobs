@@ -9,6 +9,8 @@ import re
 import requests
 import time
 import json
+import signal
+import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from bs4 import BeautifulSoup
@@ -23,6 +25,14 @@ CORS(app, resources={
     r"/resources/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
     r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
 })
+
+# Signal handler for graceful shutdown
+def signal_handler(sig, frame):
+    print('\nReceived signal, shutting down gracefully...')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def parse_query(query: str) -> Tuple[str, str, int]:
     """Parse the user query to extract job title, location, and distance."""
@@ -439,6 +449,11 @@ def search_jobs():
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
+@app.route('/ready', methods=['GET'])
+def readiness_probe():
+    """Readiness probe endpoint for container orchestration."""
+    return jsonify({'status': 'ready'}), 200
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
@@ -459,13 +474,34 @@ def health_check():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
-    print(f"Starting MCP server on port {port}")  # Debug logging
-    print("MCP server endpoints available:")
-    print(f"  - /mcp (MCP JSON-RPC)")
-    print(f"  - /tools/list (List tools)")
-    print(f"  - /tools/call (Call tools)")
-    print(f"  - /resources/list (List resources)")
-    print(f"  - /.well-known/mcp-config (MCP configuration)")
-    print(f"  - /health (Health check)")
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    try:
+        port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
+        host = os.environ.get('HOST', '0.0.0.0')
+        
+        print(f"Starting MCP server on {host}:{port}")  # Debug logging
+        print(f"Environment variables:")
+        print(f"  PORT: {os.environ.get('PORT', 'not set')}")
+        print(f"  HOST: {os.environ.get('HOST', 'not set')}")
+        print(f"  FLASK_ENV: {os.environ.get('FLASK_ENV', 'not set')}")
+        
+        print("MCP server endpoints available:")
+        print(f"  - /mcp (MCP JSON-RPC)")
+        print(f"  - /tools/list (List tools)")
+        print(f"  - /tools/call (Call tools)")
+        print(f"  - /resources/list (List resources)")
+        print(f"  - /.well-known/mcp-config (MCP configuration)")
+        print(f"  - /health (Health check)")
+        
+        # Test basic Flask app functionality
+        print("Testing Flask app configuration...")
+        with app.app_context():
+            print("✓ Flask app context initialized successfully")
+        
+        print(f"Starting Flask server...")
+        app.run(host=host, port=port, debug=False, threaded=True)
+        
+    except Exception as e:
+        print(f"ERROR: Failed to start MCP server: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

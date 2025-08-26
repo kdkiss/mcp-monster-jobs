@@ -25,8 +25,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8081/ready', timeout=5)" || exit 1
+
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []
+
+# Expose port
+EXPOSE 8081
 
 # Run the application directly using the venv Python
 CMD ["python", "src/main.py"]
