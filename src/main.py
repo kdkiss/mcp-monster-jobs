@@ -166,12 +166,16 @@ class MonsterJobsMCPServer:
                 },
                 "resources": {
                     "listChanged": True
-                }
+                },
+                "prompts": {},
+                "logging": {}
             },
             "serverInfo": {
                 "name": "monster-jobs-mcp-server",
-                "version": "1.0.0"
-            }
+                "version": "1.0.0",
+                "description": "MCP server for searching jobs on Monster.com"
+            },
+            "instructions": "This server provides job search capabilities for Monster.com. Use the search_jobs tool to find job listings based on natural language queries."
         }
 
     def handle_tools_list(self) -> Dict[str, Any]:
@@ -225,9 +229,11 @@ class MonsterJobsMCPServer:
                 "isError": True
             }
 
-    def handle_resources_list(self) -> Dict[str, Any]:
-        """Handle resources/list request."""
-        return {"resources": self.resources}
+    def handle_notifications_initialized(self, params: Dict[str, Any]) -> None:
+        """Handle notifications/initialized request."""
+        print("MCP Debug - notifications/initialized called")  # Debug logging
+        # This is a notification, no response needed
+        pass
 
     def _search_jobs_tool(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the search_jobs tool."""
@@ -262,13 +268,19 @@ mcp_server = MonsterJobsMCPServer()
 def handle_mcp_request():
     """Handle MCP JSON-RPC requests."""
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
         print(f"MCP Debug - Request data: {data}")  # Debug logging
 
-        if not data or "jsonrpc" not in data or data["jsonrpc"] != "2.0":
-            return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}), 400
+        if not data:
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: No JSON data received"}, "id": None}), 400
+        
+        if "jsonrpc" not in data or data["jsonrpc"] != "2.0":
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing or invalid jsonrpc version"}, "id": data.get("id")}), 400
 
         method = data.get("method")
+        if not method:
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing method"}, "id": data.get("id")}), 400
+        
         params = data.get("params", {})
         req_id = data.get("id")
 
@@ -277,6 +289,10 @@ def handle_mcp_request():
         # Handle all MCP methods on the /mcp endpoint
         if method == "initialize":
             result = mcp_server.handle_initialize(params)
+        elif method == "notifications/initialized":
+            # This is a notification, no response needed
+            mcp_server.handle_notifications_initialized(params)
+            return "", 204  # No content response for notifications
         elif method == "tools/list":
             result = mcp_server.handle_tools_list()
         elif method == "tools/call":
@@ -284,12 +300,19 @@ def handle_mcp_request():
         elif method == "resources/list":
             result = mcp_server.handle_resources_list()
         else:
-            return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": req_id}), 404
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}), 404
 
-        return jsonify({"jsonrpc": "2.0", "result": result, "id": req_id})
+        response_data = {"jsonrpc": "2.0", "result": result, "id": req_id}
+        print(f"MCP Debug - Response: {response_data}")  # Debug logging
+        return jsonify(response_data)
 
+    except json.JSONDecodeError as e:
+        print(f"MCP Debug - JSON decode error: {e}")  # Debug logging
+        return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": f"Parse error: {str(e)}"}, "id": None}), 400
     except Exception as e:
-        return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": data.get("id") if 'data' in locals() else None}), 500
+        print(f"MCP Debug - Internal error: {e}")  # Debug logging
+        error_id = data.get("id") if 'data' in locals() and data else None
+        return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": error_id}), 500
 
 @app.route('/mcp', methods=['POST'])
 def mcp_endpoint():
@@ -326,13 +349,44 @@ def mcp_config():
     config = {
         "mcpServers": {
             "monster-jobs": {
-                "url": f"{host}/mcp",
-                "transport": "http"
+                "command": "python",
+                "args": ["src/main.py"],
+                "env": {
+                    "PORT": "8081"
+                },
+                "transport": {
+                    "type": "http",
+                    "host": "localhost",
+                    "port": 8081
+                }
             }
         }
     }
     print(f"MCP Config response: {config}")  # Debug logging
     return jsonify(config)
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint for basic connectivity testing."""
+    return jsonify({
+        "name": "Monster Jobs MCP Server",
+        "version": "1.0.0",
+        "description": "A Model Context Protocol server for searching jobs on Monster.com",
+        "mcp_endpoints": [
+            "/mcp",
+            "/initialize", 
+            "/tools/list",
+            "/tools/call",
+            "/resources/list",
+            "/.well-known/mcp-config"
+        ],
+        "status": "ready"
+    })
+
+@app.route('/initialize', methods=['POST'])
+def initialize():
+    """Initialize endpoint for MCP compatibility."""
+    return handle_mcp_request()
 
 @app.route('/test', methods=['GET'])
 def test_endpoint():
