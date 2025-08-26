@@ -589,7 +589,7 @@ def status():
     """Simple status endpoint for quick server validation."""
     return {'status': 'ok', 'service': 'monster-jobs-mcp-server', 'ready': True}, 200
 
-@app.route('/ping', methods=['GET']))
+@app.route('/ping', methods=['GET'])
 def ping():
     """Quick ping endpoint for connectivity testing."""
     return {'status': 'pong'}, 200
