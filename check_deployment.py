@@ -37,28 +37,14 @@ def check_smithery_config():
         with open('smithery.yaml', 'r') as f:
             config = yaml.safe_load(f)
         
-        required_sections = ['runtime', 'build', 'startCommand', 'testConfig', 'env']
+        required_sections = ['runtime', 'build', 'startCommand', 'env']
         for section in required_sections:
             if section in config:
                 print(f"   ✅ {section} section present")
             else:
                 print(f"   ❌ {section} section missing")
         
-        # Check testConfig specifically
-        if 'testConfig' in config:
-            test_config = config['testConfig']
-            if test_config.get('enabled'):
-                print(f"   ✅ testConfig enabled")
-                if 'configFile' in test_config:
-                    config_file = test_config['configFile']
-                    if os.path.exists(config_file):
-                        print(f"   ✅ Test config file exists: {config_file}")
-                    else:
-                        print(f"   ❌ Test config file missing: {config_file}")
-                else:
-                    print(f"   ⚠️  No configFile specified in testConfig")
-            else:
-                print(f"   ⚠️  testConfig not enabled")
+
         
         return True
         
@@ -112,7 +98,6 @@ def main():
         print("✅ Deployment configuration looks good!")
         print("   - All required files present")
         print("   - smithery.yaml is valid")
-        print("   - testConfig is properly configured")
         print("\n🎯 Ready for deployment!")
     else:
         print("⚠️  Some issues detected:")

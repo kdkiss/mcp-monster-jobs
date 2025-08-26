@@ -36,7 +36,7 @@ def scan():
         "protocol": {"name": "mcp", "version": "2024-11-05", "transport": "http"},
         "capabilities": {"tools": {"available": True, "count": 1}, "resources": {"available": True, "count": 1}},
         "endpoints": {"main": "/mcp", "health": "/health", "scan": "/scan"},
-        "testConfig": {"available": True, "configFile": ".smithery-test.yaml"},
+
         "deployment": {"platform": "smithery", "ready": True}
     })
 
@@ -48,7 +48,7 @@ def mcp_scan():
             "protocol": "mcp", "transport": "http",
             "capabilities": {"tools": {"available": True, "count": 1}, "resources": {"available": True, "count": 1}},
             "endpoints": {"main": "/mcp", "health": "/health", "config": "/.well-known/mcp-config"},
-            "testConfig": {"available": True, "configFile": ".smithery-test.yaml"}
+
         })
     return jsonify({"jsonrpc": "2.0", "result": {"status": "ready"}, "id": 1})
 
