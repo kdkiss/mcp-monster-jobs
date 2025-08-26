@@ -34,9 +34,13 @@ ENV HOST=0.0.0.0
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Add health check using curl instead of Python to avoid import issues
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8081/ready || exit 1
+# Optimize Python for container deployment
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app
+
+# Add health check using curl with longer intervals for production
+HEALTHCHECK --interval=60s --timeout=30s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8081/health || exit 1
 
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []

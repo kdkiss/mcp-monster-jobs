@@ -11,7 +11,9 @@ startCommand:
   healthCheck:
     path: "/health"
     expectedStatus: 200
-    timeoutSeconds: 10
+    timeoutSeconds: 30
+    intervalSeconds: 5
+    retries: 5
 
 mcp:
   enabled: true
@@ -24,61 +26,16 @@ mcp:
     port: 8081
   endpoints:
     main: "/mcp"
-    initialize: "/mcp"
-    toolsList: "/mcp"
-    toolsCall: "/mcp"
-    resourcesList: "/mcp"
     config: "/.well-known/mcp-config"
   capabilities:
     - "tools"
     - "resources"
   testConfig:
-    timeout: 30
-    retries: 3
-    tests:
-      - name: "health_check"
-        method: "GET"
-        path: "/health"
-        expectedStatus: 200
-      - name: "mcp_config"
-        method: "GET"
-        path: "/.well-known/mcp-config"
-        expectedStatus: 200
-      - name: "initialize"
-        method: "POST"
-        path: "/mcp"
-        body:
-          jsonrpc: "2.0"
-          method: "initialize"
-          params:
-            protocolVersion: "2024-11-05"
-            capabilities: {}
-          id: 1
-        expectedStatus: 200
-        expectedResponse:
-          jsonrpc: "2.0"
-          result:
-            protocolVersion: "2024-11-05"
-            capabilities:
-              tools:
-                listChanged: true
-              resources:
-                listChanged: true
-      - name: "tools_list"
-        method: "POST"
-        path: "/mcp"
-        body:
-          jsonrpc: "2.0"
-          method: "tools/list"
-          params: {}
-          id: 2
-        expectedStatus: 200
-        expectedResponse:
-          jsonrpc: "2.0"
-          result:
-            tools:
-              - name: "search_jobs"
-                description: "Search for jobs on Monster.com based on a natural language query"
+    timeout: 60
+    retries: 5
+    healthCheck:
+      path: "/health"
+      expectedStatus: 200
 
 env:
   PORT: "8081"

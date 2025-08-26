@@ -172,7 +172,6 @@ class MonsterJobsMCPServer:
 
     def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
-        print(f"MCP Initialize called with params: {params}")  # Debug logging
         return {
             "protocolVersion": "2024-11-05",
             "capabilities": {
@@ -195,12 +194,10 @@ class MonsterJobsMCPServer:
 
     def handle_tools_list(self) -> Dict[str, Any]:
         """Handle tools/list request."""
-        print("MCP Debug - tools/list called")  # Debug logging
         return {"tools": self.tools}
 
     def handle_resources_list(self) -> Dict[str, Any]:
         """Handle resources/list request."""
-        print("MCP Debug - resources/list called")  # Debug logging
         return {"resources": self.resources}
 
     def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -287,7 +284,6 @@ def handle_mcp_request():
         start_time = time.time()
         
         data = request.get_json(force=True)
-        print(f"MCP Debug - Request data: {data}")  # Debug logging
 
         if not data:
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: No JSON data received"}, "id": None}), 400
@@ -301,8 +297,6 @@ def handle_mcp_request():
         
         params = data.get("params", {})
         req_id = data.get("id")
-
-        print(f"MCP Debug - Method: {method}, Params: {params}")  # Debug logging
 
         # Handle all MCP methods on the /mcp endpoint
         result = None
@@ -324,18 +318,14 @@ def handle_mcp_request():
         # Check for timeout
         elapsed_time = time.time() - start_time
         if elapsed_time > 25:  # 25 second timeout
-            print(f"MCP Debug - Request timeout after {elapsed_time}s")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": "Request timeout"}, "id": req_id}), 504
 
         response_data = {"jsonrpc": "2.0", "result": result, "id": req_id}
-        print(f"MCP Debug - Response: {response_data}")  # Debug logging
         return jsonify(response_data)
 
     except json.JSONDecodeError as e:
-        print(f"MCP Debug - JSON decode error: {e}")  # Debug logging
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": f"Parse error: {str(e)}"}, "id": None}), 400
     except Exception as e:
-        print(f"MCP Debug - Internal error: {e}")  # Debug logging
         error_id = data.get("id") if 'data' in locals() and data else None
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": error_id}), 500
 
@@ -417,8 +407,7 @@ def root():
             "tools": ["search_jobs"],
             "resources": ["monster://jobs/search"]
         },
-        "status": "ready",
-        "timestamp": time.time()
+        "status": "ready"
     })
 
 @app.route('/initialize', methods=['POST'])
@@ -543,7 +532,7 @@ def mcp_scan():
 @app.route('/ping', methods=['GET'])
 def ping():
     """Quick ping endpoint for connectivity testing."""
-    return {'status': 'pong', 'timestamp': time.time()}, 200
+    return {'status': 'pong'}, 200
 
 @app.route('/ready', methods=['GET'])
 def readiness_probe():
@@ -564,14 +553,28 @@ if __name__ == '__main__':
         port = int(os.environ.get('PORT', 8081))
         host = os.environ.get('HOST', '0.0.0.0')
         
-        print(f"Starting Monster Jobs MCP Server on {host}:{port}")
-        print(f"Environment: PORT={os.environ.get('PORT', 'not set')}")
+        print(f"[STARTUP] Starting Monster Jobs MCP Server on {host}:{port}")
+        print(f"[STARTUP] Environment: PORT={os.environ.get('PORT', 'not set')}")
+        print(f"[STARTUP] Server initialization complete")
         
-        # Run the server
-        app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
+        # Try to use a production WSGI server if available, fallback to Flask dev server
+        try:
+            from waitress import serve
+            print(f"[STARTUP] Using Waitress WSGI server")
+            serve(app, host=host, port=port, threads=4)
+        except ImportError:
+            print(f"[STARTUP] Using Flask development server")
+            app.run(
+                host=host, 
+                port=port, 
+                debug=False, 
+                threaded=True, 
+                use_reloader=False,
+                processes=1
+            )
         
     except Exception as e:
-        print(f"ERROR: Failed to start server: {e}")
+        print(f"[ERROR] Failed to start server: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
