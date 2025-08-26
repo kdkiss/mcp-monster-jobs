@@ -1,0 +1,51 @@
+# Docker ignore file to reduce build context size and improve build performance
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+# Git
+.git/
+.gitignore
+
+# Documentation and notes
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+validate_*.py
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

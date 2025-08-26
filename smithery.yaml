@@ -12,72 +12,15 @@ startCommand:
     path: "/health"
     expectedStatus: 200
     timeoutSeconds: 30
-    intervalSeconds: 5
-    retries: 5
 
 mcp:
   enabled: true
   serverName: "monster-jobs-mcp-server"
   description: "Search job listings on Monster.com using natural language queries"
   version: "1.0.0"
-  transport:
-    type: "http"
-    host: "localhost"
-    port: 8081
-  endpoints:
-    main: "/mcp"
-    config: "/.well-known/mcp-config"
   capabilities:
     - "tools"
     - "resources"
-  testConfig:
-    timeout: 60
-    retries: 5
-    healthCheck:
-      path: "/health"
-      expectedStatus: 200
-    basicTests:
-      - name: "ping"
-        method: "GET"
-        path: "/ping"
-        expectedStatus: 200
-      - name: "root"
-        method: "GET"
-        path: "/"
-        expectedStatus: 200
-      - name: "health"
-        method: "GET"
-        path: "/health"
-        expectedStatus: 200
-    mcpTests:
-      - name: "mcp_config"
-        method: "GET"
-        path: "/.well-known/mcp-config"
-        expectedStatus: 200
-      - name: "mcp_initialize"
-        method: "POST"
-        path: "/mcp"
-        headers:
-          Content-Type: "application/json"
-        body:
-          jsonrpc: "2.0"
-          method: "initialize"
-          params:
-            protocolVersion: "2024-11-05"
-            capabilities: {}
-          id: 1
-        expectedStatus: 200
-      - name: "mcp_tools_list"
-        method: "POST"
-        path: "/mcp"
-        headers:
-          Content-Type: "application/json"
-        body:
-          jsonrpc: "2.0"
-          method: "tools/list"
-          params: {}
-          id: 2
-        expectedStatus: 200
 
 env:
   PORT: "8081"
