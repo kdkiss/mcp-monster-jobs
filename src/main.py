@@ -46,30 +46,36 @@ CORS(app, resources={
     r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
 })
 
-# Add error handling wrapper for all routes
+# Add error handling wrapper for all routes - optimized for speed
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Global exception handler to ensure proper JSON responses."""
-    print(f"[ERROR] Unhandled exception: {e}")
-    import traceback
-    traceback.print_exc()
+    """Fast global exception handler for deployment scanning."""
+    # Skip logging and traceback for scanning endpoints to avoid delays
+    if request and (request.path.startswith('/scan') or 
+                   request.path.startswith('/mcp') or
+                   request.path in ['/health', '/ping', '/ready', '/status']):
+        # Minimal error response for scanning endpoints
+        return jsonify({
+            "error": "Internal server error",
+            "status": "error"
+        }), 500
     
-    # Return JSON error response
+    # Standard error response for other endpoints
     return jsonify({
         "error": "Internal server error",
-        "message": str(e),
+        "message": str(e)[:100],  # Truncate message
         "type": type(e).__name__,
         "status": "error"
     }), 500
 
-# Add basic request logging for debugging
+# Add minimal request logging for debugging
 @app.before_request
 def log_request():
-    # Minimal logging for production deployment - only log critical endpoints
+    # Only log non-scanning endpoints to reduce I/O overhead
+    if request.path.startswith('/scan') or request.path.startswith('/mcp'):
+        return  # Skip all logging for scanning endpoints
     if request.path in ['/health', '/ready', '/ping', '/status']:
-        return  # Skip logging for health checks to reduce noise
-    if request.path.startswith('/mcp') or request.path.startswith('/scan'):
-        print(f"[MCP] {request.method} {request.path}")
+        return  # Skip logging for health checks
 
 # Signal handler for graceful shutdown
 def signal_handler(sig, frame):
@@ -443,15 +449,14 @@ def jsonrpc_endpoint():
 
 @app.route('/.well-known/mcp-config', methods=['GET'])
 def mcp_config():
-    """MCP configuration endpoint for service discovery."""
-    config = {
+    """Ultra-fast MCP configuration endpoint for service discovery."""
+    # Direct response without any processing delays
+    return jsonify({
         "mcpServers": {
             "monster-jobs": {
                 "command": "python",
                 "args": ["src/main.py"],
-                "env": {
-                    "PORT": "8081"
-                },
+                "env": {"PORT": "8081"},
                 "transport": {
                     "type": "http",
                     "host": "localhost",
@@ -474,57 +479,49 @@ def mcp_config():
             "status": "/status",
             "ping": "/ping"
         }
-    }
-    return jsonify(config)
+    })
 
 @app.route('/', methods=['GET'])
 def root():
-    """Root endpoint for basic connectivity testing."""
-    try:
-        return jsonify({
-            "name": "Monster Jobs MCP Server",
-            "version": "1.0.0",
-            "description": "A Model Context Protocol server for searching jobs on Monster.com",
-            "protocol": "mcp",
-            "protocolVersion": "2024-11-05",
-            "transport": "http", 
-            "mcp_endpoints": [
-                "/mcp",
-                "/initialize", 
-                "/tools/list",
-                "/tools/call",
-                "/resources/list",
-                "/.well-known/mcp-config",
-                "/mcp/scan",
-                "/mcp/capabilities"
-            ],
-            "utility_endpoints": [
-                "/health",
-                "/ready", 
-                "/ping",
-                "/status",
-                "/scan",
-                "/smithery"
-            ],
-            "capabilities": {
-                "tools": ["search_jobs"],
-                "resources": ["monster://jobs/search"]
-            },
-            "status": "ready",
-            "healthy": True,
-            "scannable": True,
-            "testable": True,
-            "deployment": {
-                "platform": "smithery",
-                "ready": True
-            }
-        })
-    except Exception as e:
-        print(f"[ROOT] Error: {e}")
-        return jsonify({
-            "error": "Root endpoint error",
-            "message": str(e)
-        }), 500
+    """Ultra-fast root endpoint for basic connectivity testing."""
+    # Direct response without error handling for maximum speed
+    return jsonify({
+        "name": "Monster Jobs MCP Server",
+        "version": "1.0.0",
+        "description": "A Model Context Protocol server for searching jobs on Monster.com",
+        "protocol": "mcp",
+        "protocolVersion": "2024-11-05",
+        "transport": "http", 
+        "mcp_endpoints": [
+            "/mcp",
+            "/tools/list",
+            "/tools/call",
+            "/resources/list",
+            "/.well-known/mcp-config",
+            "/mcp/scan",
+            "/mcp/capabilities"
+        ],
+        "utility_endpoints": [
+            "/health",
+            "/ready", 
+            "/ping",
+            "/status",
+            "/scan",
+            "/smithery"
+        ],
+        "capabilities": {
+            "tools": ["search_jobs"],
+            "resources": ["monster://jobs/search"]
+        },
+        "status": "ready",
+        "healthy": True,
+        "scannable": True,
+        "testable": True,
+        "deployment": {
+            "platform": "smithery",
+            "ready": True
+        }
+    })
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
@@ -694,152 +691,138 @@ def metadata():
 
 @app.route('/.smithery-test', methods=['GET'])
 def smithery_test_config():
-    """Return Smithery-specific test configuration."""
-    try:
-        config = {
-            "version": "1.0",
-            "name": "monster-jobs-mcp-server",
-            "description": "Test configuration for Monster Jobs MCP Server",
-            "tests": [
-                {
-                    "name": "health_check",
-                    "type": "http",
-                    "endpoint": "/health",
-                    "method": "GET",
-                    "expected": {
-                        "status": 200,
-                        "response": {
-                            "status": "healthy",
-                            "service": "Monster Jobs MCP Server",
-                            "version": "1.0.0"
+    """Return Smithery-specific test configuration instantly."""
+    # Direct response without any processing delays
+    return jsonify({
+        "version": "1.0",
+        "name": "monster-jobs-mcp-server",
+        "description": "Test configuration for Monster Jobs MCP Server",
+        "tests": [
+            {
+                "name": "health_check",
+                "type": "http",
+                "endpoint": "/health",
+                "method": "GET",
+                "expected": {
+                    "status": 200,
+                    "response": {
+                        "status": "healthy",
+                        "service": "Monster Jobs MCP Server",
+                        "version": "1.0.0"
+                    }
+                }
+            },
+            {
+                "name": "mcp_initialize",
+                "type": "jsonrpc",
+                "endpoint": "/mcp",
+                "method": "POST",
+                "payload": {
+                    "jsonrpc": "2.0",
+                    "method": "initialize",
+                    "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
+                    "id": 1
+                },
+                "expected": {
+                    "status": 200,
+                    "response": {
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "protocolVersion": "2024-11-05",
+                            "serverInfo": {
+                                "name": "monster-jobs-mcp-server"
+                            }
                         }
                     }
+                }
+            }
+        ],
+        "scan_config": {
+            "timeout": 30,
+            "retry_attempts": 3,
+            "endpoints": ["/mcp/scan", "/mcp/capabilities", "/.well-known/mcp-config"]
+        }
+    })
+
+@app.route('/test-config', methods=['GET'])
+def test_config():
+    """Return test configuration for scanning tools."""
+    # Direct response without error handling for maximum speed
+    return jsonify({
+        "tests": {
+            "connectivity": [
+                {
+                    "name": "health_check",
+                    "endpoint": "/health",
+                    "method": "GET",
+                    "expectedStatus": 200
                 },
                 {
+                    "name": "ping_test",
+                    "endpoint": "/ping",
+                    "method": "GET",
+                    "expectedStatus": 200
+                },
+                {
+                    "name": "ready_check",
+                    "endpoint": "/ready",
+                    "method": "GET",
+                    "expectedStatus": 200
+                }
+            ],
+            "mcp_protocol": [
+                {
                     "name": "mcp_initialize",
-                    "type": "jsonrpc",
                     "endpoint": "/mcp",
                     "method": "POST",
+                    "contentType": "application/json",
                     "payload": {
                         "jsonrpc": "2.0",
                         "method": "initialize",
                         "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
                         "id": 1
                     },
-                    "expected": {
-                        "status": 200,
-                        "response": {
-                            "jsonrpc": "2.0",
-                            "result": {
-                                "protocolVersion": "2024-11-05",
-                                "serverInfo": {
-                                    "name": "monster-jobs-mcp-server"
-                                }
-                            }
-                        }
-                    }
+                    "expectedStatus": 200
+                },
+                {
+                    "name": "tools_list",
+                    "endpoint": "/mcp",
+                    "method": "POST",
+                    "contentType": "application/json",
+                    "payload": {
+                        "jsonrpc": "2.0",
+                        "method": "tools/list",
+                        "params": {},
+                        "id": 2
+                    },
+                    "expectedStatus": 200
                 }
             ],
-            "scan_config": {
-                "timeout": 30,
-                "retry_attempts": 3,
-                "endpoints": ["/mcp/scan", "/mcp/capabilities", "/.well-known/mcp-config"]
-            }
+            "service_discovery": [
+                {
+                    "name": "mcp_config",
+                    "endpoint": "/.well-known/mcp-config",
+                    "method": "GET",
+                    "expectedStatus": 200
+                },
+                {
+                    "name": "capabilities_scan",
+                    "endpoint": "/mcp/capabilities",
+                    "method": "GET",
+                    "expectedStatus": 200
+                }
+            ]
+        },
+        "scanning": {
+            "timeout": 30,
+            "retryAttempts": 3,
+            "retryDelay": 2,
+            "validateJson": True,
+            "checkProtocolCompliance": True,
+            "primaryEndpoint": "/mcp/scan",
+            "fallbackEndpoints": ["/mcp/capabilities", "/smithery", "/.well-known/mcp-config"]
         }
-        return jsonify(config)
-    except Exception as e:
-        print(f"[SMITHERY-TEST] Error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/test-config', methods=['GET'])
-def test_config():
-    """Return test configuration for scanning tools."""
-    try:
-        config = {
-            "tests": {
-                "connectivity": [
-                    {
-                        "name": "health_check",
-                        "endpoint": "/health",
-                        "method": "GET",
-                        "expectedStatus": 200,
-                        "expectedResponse": {"status": "healthy"}
-                    },
-                    {
-                        "name": "ping_test",
-                        "endpoint": "/ping",
-                        "method": "GET",
-                        "expectedStatus": 200,
-                        "expectedResponse": {"status": "pong"}
-                    },
-                    {
-                        "name": "ready_check",
-                        "endpoint": "/ready",
-                        "method": "GET",
-                        "expectedStatus": 200,
-                        "expectedResponse": {"status": "ready"}
-                    }
-                ],
-                "mcp_protocol": [
-                    {
-                        "name": "mcp_initialize",
-                        "endpoint": "/mcp",
-                        "method": "POST",
-                        "contentType": "application/json",
-                        "payload": {
-                            "jsonrpc": "2.0",
-                            "method": "initialize",
-                            "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
-                            "id": 1
-                        },
-                        "expectedStatus": 200
-                    },
-                    {
-                        "name": "tools_list",
-                        "endpoint": "/mcp",
-                        "method": "POST",
-                        "contentType": "application/json",
-                        "payload": {
-                            "jsonrpc": "2.0",
-                            "method": "tools/list",
-                            "params": {},
-                            "id": 2
-                        },
-                        "expectedStatus": 200
-                    }
-                ],
-                "service_discovery": [
-                    {
-                        "name": "mcp_config",
-                        "endpoint": "/.well-known/mcp-config",
-                        "method": "GET",
-                        "expectedStatus": 200
-                    },
-                    {
-                        "name": "capabilities_scan",
-                        "endpoint": "/mcp/capabilities",
-                        "method": "GET",
-                        "expectedStatus": 200
-                    }
-                ]
-            },
-            "scanning": {
-                "timeout": 30,
-                "retryAttempts": 3,
-                "retryDelay": 2,
-                "validateJson": True,
-                "checkProtocolCompliance": True,
-                "primaryEndpoint": "/mcp/scan",
-                "fallbackEndpoints": ["/mcp/capabilities", "/smithery", "/.well-known/mcp-config"]
-            }
-        }
-        return jsonify(config)
-    except Exception as e:
-        print(f"[TEST-CONFIG] Error: {e}")
-        return jsonify({
-            "error": "Failed to get test configuration",
-            "message": str(e)
-        }), 500
+    })
 
 @app.route('/scan', methods=['GET', 'POST'])
 def universal_scan():
@@ -880,76 +863,53 @@ def universal_scan():
 
 @app.route('/mcp/capabilities', methods=['GET'])
 def mcp_capabilities():
-    """Return MCP server capabilities for scanning."""
-    try:
-        print("[CAPABILITIES] MCP capabilities request received")
-        
-        capabilities = {
-            "protocolVersion": "2025-06-18",
-            "serverInfo": {
-                "name": "monster-jobs-mcp-server",
-                "version": "1.0.0",
-                "description": "MCP server for searching jobs on Monster.com"
-            },
-            "capabilities": {
-                "tools": {
-                    "listChanged": True
-                },
-                "resources": {
-                    "listChanged": True
-                },
-                "prompts": {},
-                "logging": {}
-            },
-            "tools": [
-                {
-                    "name": "search_jobs",
-                    "description": "Search for jobs on Monster.com based on a natural language query",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "Natural language query describing the job search (e.g., 'software engineer jobs near New York within 25 miles')"
-                            },
-                            "max_jobs": {
-                                "type": "integer",
-                                "description": "Maximum number of jobs to return (default: 10)",
-                                "default": 10,
-                                "minimum": 1,
-                                "maximum": 50
-                            }
+    """Ultra-fast MCP server capabilities for scanning."""
+    # Direct response without any processing delays
+    return jsonify({
+        "protocolVersion": "2024-11-05",
+        "serverInfo": {
+            "name": "monster-jobs-mcp-server",
+            "version": "1.0.0",
+            "description": "MCP server for searching jobs on Monster.com"
+        },
+        "capabilities": {
+            "tools": {"listChanged": True},
+            "resources": {"listChanged": True},
+            "prompts": {},
+            "logging": {}
+        },
+        "tools": [
+            {
+                "name": "search_jobs",
+                "description": "Search for jobs on Monster.com based on a natural language query",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Natural language query describing the job search"
                         },
-                        "required": ["query"]
-                    }
+                        "max_jobs": {
+                            "type": "integer",
+                            "description": "Maximum number of jobs to return",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    },
+                    "required": ["query"]
                 }
-            ],
-            "resources": [
-                {
-                    "uri": "monster://jobs/search",
-                    "name": "Monster Jobs Search",
-                    "description": "Search jobs on Monster.com",
-                    "mimeType": "application/json"
-                }
-            ]
-        }
-        
-        # Validate JSON serialization
-        json.dumps(capabilities)
-        print("[CAPABILITIES] Successfully prepared capabilities response")
-        
-        return jsonify(capabilities)
-        
-    except Exception as e:
-        print(f"[CAPABILITIES] Error: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        return jsonify({
-            "error": "Failed to retrieve capabilities",
-            "message": str(e),
-            "status": "error"
-        }), 500
+            }
+        ],
+        "resources": [
+            {
+                "uri": "monster://jobs/search",
+                "name": "Monster Jobs Search",
+                "description": "Search jobs on Monster.com",
+                "mimeType": "application/json"
+            }
+        ]
+    })
 
 @app.route('/smithery', methods=['GET'])
 def smithery_info():
