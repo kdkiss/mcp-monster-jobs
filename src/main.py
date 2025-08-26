@@ -449,71 +449,33 @@ def search_jobs():
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
-@app.route('/debug/routes', methods=['GET'])
-def debug_routes():
-    """Debug endpoint to list all registered routes."""
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
-            'rule': str(rule)
-        })
-    return jsonify({'routes': routes})
-
 @app.route('/ready', methods=['GET'])
 def readiness_probe():
     """Readiness probe endpoint for container orchestration."""
-    return jsonify({'status': 'ready'}), 200
+    return {'status': 'ready'}, 200
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({
+    return {
         'status': 'healthy', 
         'service': 'Monster Jobs MCP Server',
-        'version': '1.0.0',
-        'mcp_enabled': True,
-        'endpoints': {
-            'mcp': '/mcp',
-            'initialize': '/initialize',
-            'tools_list': '/tools/list',
-            'tools_call': '/tools/call', 
-            'resources_list': '/resources/list',
-            'config': '/.well-known/mcp-config'
-        },
-        'timestamp': time.time()
-    })
+        'version': '1.0.0'
+    }, 200
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
+        port = int(os.environ.get('PORT', 8081))
         host = os.environ.get('HOST', '0.0.0.0')
         
-        print(f"Starting MCP server on {host}:{port}")  # Debug logging
-        print(f"Environment variables:")
-        print(f"  PORT: {os.environ.get('PORT', 'not set')}")
-        print(f"  HOST: {os.environ.get('HOST', 'not set')}")
-        print(f"  FLASK_ENV: {os.environ.get('FLASK_ENV', 'not set')}")
+        print(f"Starting Monster Jobs MCP Server on {host}:{port}")
+        print(f"Environment: PORT={os.environ.get('PORT', 'not set')}")
         
-        print("MCP server endpoints available:")
-        print(f"  - /mcp (MCP JSON-RPC)")
-        print(f"  - /tools/list (List tools)")
-        print(f"  - /tools/call (Call tools)")
-        print(f"  - /resources/list (List resources)")
-        print(f"  - /.well-known/mcp-config (MCP configuration)")
-        print(f"  - /health (Health check)")
-        
-        # Test basic Flask app functionality
-        print("Testing Flask app configuration...")
-        with app.app_context():
-            print("✓ Flask app context initialized successfully")
-        
-        print(f"Starting Flask server...")
-        app.run(host=host, port=port, debug=False, threaded=True)
+        # Run the server
+        app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
         
     except Exception as e:
-        print(f"ERROR: Failed to start MCP server: {e}")
+        print(f"ERROR: Failed to start server: {e}")
         import traceback
         traceback.print_exc()
-        exit(1)
+        sys.exit(1)

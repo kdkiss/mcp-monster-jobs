@@ -10,6 +10,9 @@ ENV UV_COMPILE_BYTECODE=1
 # Copy from the cache instead of linking since it's a mounted volume
 ENV UV_LINK_MODE=copy
 
+# Install system dependencies if needed
+RUN apk add --no-cache curl
+
 # Install the project's dependencies using the lockfile and settings
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -25,9 +28,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8081/ready', timeout=5)" || exit 1
+# Set environment variables for production
+ENV PORT=8081
+ENV HOST=0.0.0.0
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
+
+# Add health check using curl instead of Python to avoid import issues
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8081/ready || exit 1
 
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []
