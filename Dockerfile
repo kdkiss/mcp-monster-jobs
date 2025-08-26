@@ -29,8 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Set up environment
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Health check with faster intervals for deployment
-HEALTHCHECK --interval=30s --timeout=10s --retries=2 --start-period=10s \
+# Health check optimized for Smithery platform scanning
+HEALTHCHECK --interval=20s --timeout=5s --retries=2 --start-period=15s \
     CMD curl -f http://localhost:8081/health || exit 1
 
 # Expose port and run

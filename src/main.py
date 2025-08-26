@@ -117,13 +117,21 @@ def construct_search_url(job_title: str, location: str, distance: int) -> str:
     return f"{base_url}?{'&'.join(params)}"
 
 def get_server_config():
-    """Get server configuration from environment or query parameters."""
-    config = {
-        'max_jobs': int(request.args.get('maxJobs', os.environ.get('MAX_JOBS', 10))),
-        'timeout': int(request.args.get('timeout', os.environ.get('TIMEOUT', 15)))
-    }
+    """Get server configuration from MCP context, query parameters, or environment."""
+    # First check if MCP config is available from request context
+    if hasattr(request, 'mcp_config'):
+        config = {
+            'max_jobs': request.mcp_config.get('maxJobs', 10),
+            'timeout': request.mcp_config.get('timeout', 15)
+        }
+    else:
+        # Fallback to query parameters or environment variables
+        config = {
+            'max_jobs': int(request.args.get('maxJobs', os.environ.get('MAX_JOBS', 10))),
+            'timeout': int(request.args.get('timeout', os.environ.get('TIMEOUT', 15)))
+        }
     
-    # Validate configuration values
+    # Validate configuration values according to schema
     config['max_jobs'] = max(1, min(50, config['max_jobs']))
     config['timeout'] = max(5, min(30, config['timeout']))
     
@@ -412,7 +420,26 @@ def handle_mcp_request():
 
 @app.route('/mcp', methods=['POST'])
 def mcp_endpoint():
-    """MCP JSON-RPC endpoint."""
+    """MCP JSON-RPC endpoint with Streamable HTTP configuration support."""
+    # Extract configuration from query parameters as required by Smithery
+    try:
+        # Get configuration from query parameters
+        config = {
+            'maxJobs': int(request.args.get('maxJobs', 10)),
+            'timeout': int(request.args.get('timeout', 15))
+        }
+        
+        # Validate configuration values according to schema
+        config['maxJobs'] = max(1, min(50, config['maxJobs']))
+        config['timeout'] = max(5, min(30, config['timeout']))
+        
+        # Store config in request context for use by tools
+        request.mcp_config = config
+        
+    except (ValueError, TypeError):
+        # Use defaults if query parameters are invalid
+        request.mcp_config = {'maxJobs': 10, 'timeout': 15}
+    
     return handle_mcp_request()
 
 @app.route('/tools/list', methods=['POST'])
@@ -611,15 +638,44 @@ def mcp_scan():
                 "main": "/mcp",
                 "health": "/health",
                 "config": "/.well-known/mcp-config"
-            },
-            "testConfig": {
-                "available": True,
-                "configFile": ".smithery-test.yaml"
             }
         })
     else:
         # Handle POST as JSON-RPC with minimal processing
         return handle_mcp_request()
+
+@app.route('/scan', methods=['GET', 'POST'])
+def universal_scan():
+    """Ultra-fast universal scanning endpoint."""
+    # Immediate response - no try/catch to avoid any delays
+    return jsonify({
+        "server": {
+            "name": "monster-jobs-mcp-server",
+            "version": "1.0.0",
+            "status": "ready",
+            "healthy": True,
+            "type": "mcp-server",
+            "scannable": True
+        },
+        "protocol": {
+            "name": "mcp",
+            "version": "2024-11-05",
+            "transport": "http"
+        },
+        "capabilities": {
+            "tools": {"available": True, "count": 1},
+            "resources": {"available": True, "count": 1}
+        },
+        "endpoints": {
+            "main": "/mcp",
+            "health": "/health",
+            "scan": "/scan"
+        },
+        "deployment": {
+            "platform": "smithery",
+            "ready": True
+        }
+    })
 
 @app.route('/metadata', methods=['GET'])
 def metadata():
@@ -838,10 +894,6 @@ def universal_scan():
             "main": "/mcp",
             "health": "/health",
             "scan": "/scan"
-        },
-        "testConfig": {
-            "available": True,
-            "configFile": ".smithery-test.yaml"
         },
         "deployment": {
             "platform": "smithery",

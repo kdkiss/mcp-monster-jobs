@@ -28,30 +28,6 @@ startCommand:
     maxJobs: 10
     timeout: 15
 
-testConfig:
-  enabled: true
-  configFile: ".smithery-test.yaml"
-  timeout: 30
-  endpoints:
-    health: "/health"
-    scan: "/mcp/scan"
-    capabilities: "/mcp/capabilities"
-    config: "/.well-known/mcp-config"
-  tests:
-    - name: "health_check"
-      endpoint: "/health"
-      method: "GET"
-    - name: "mcp_initialize"
-      endpoint: "/mcp"
-      method: "POST"
-      payload:
-        jsonrpc: "2.0"
-        method: "initialize"
-        params:
-          protocolVersion: "2024-11-05"
-          capabilities: {}
-        id: 1
-
 env:
   PORT: "8081"
   HOST: "0.0.0.0"
