@@ -449,6 +449,18 @@ def search_jobs():
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
+@app.route('/debug/routes', methods=['GET'])
+def debug_routes():
+    """Debug endpoint to list all registered routes."""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'rule': str(rule)
+        })
+    return jsonify({'routes': routes})
+
 @app.route('/ready', methods=['GET'])
 def readiness_probe():
     """Readiness probe endpoint for container orchestration."""
