@@ -221,8 +221,15 @@ class MonsterJobsMCPServer:
 
     def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
+        # Support both old and new protocol versions
+        client_version = params.get("protocolVersion", "2024-11-05")
+        supported_versions = ["2024-11-05", "2025-06-18"]
+        
+        # Use the client's version if it's supported, otherwise use our default
+        protocol_version = client_version if client_version in supported_versions else "2024-11-05"
+        
         return {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": protocol_version,
             "capabilities": {
                 "tools": {
                     "listChanged": True
@@ -709,7 +716,7 @@ def metadata():
                 "version": "1.0.0",
                 "description": "MCP server for searching jobs on Monster.com",
                 "protocol": "mcp",
-                "protocolVersion": "2024-11-05"
+                "protocolVersion": "2025-06-18"
             },
             "testing": {
                 "configFiles": [
@@ -1006,7 +1013,7 @@ def mcp_capabilities():
         print("[CAPABILITIES] MCP capabilities request received")
         
         capabilities = {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "serverInfo": {
                 "name": "monster-jobs-mcp-server",
                 "version": "1.0.0",
