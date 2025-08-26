@@ -120,6 +120,66 @@ def validate_tools_discovery(base_url):
         print(f"✗ Tools discovery failed: {e}")
         return False
 
+def validate_ping(base_url):
+    """Test ping endpoint."""
+    try:
+        response = requests.get(f"{base_url}/ping", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'pong':
+                print("✓ Ping endpoint: OK")
+                return True
+            else:
+                print(f"✗ Ping endpoint failed: unexpected response {data}")
+                return False
+        else:
+            print(f"✗ Ping endpoint failed: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ Ping endpoint failed: {e}")
+        return False
+
+def validate_scan_endpoint(base_url):
+    """Test MCP scan endpoint."""
+    try:
+        response = requests.get(f"{base_url}/mcp/scan", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if "capabilities" in data and "tools" in data["capabilities"]:
+                tools = data["capabilities"]["tools"].get("available", [])
+                if any(tool.get("name") == "search_jobs" for tool in tools):
+                    print("✓ MCP scan endpoint: OK")
+                    return True
+                else:
+                    print(f"✗ MCP scan endpoint failed: search_jobs tool not found")
+                    return False
+            else:
+                print(f"✗ MCP scan endpoint failed: missing capabilities")
+                return False
+        else:
+            print(f"✗ MCP scan endpoint failed: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ MCP scan endpoint failed: {e}")
+        return False
+    """Test MCP configuration endpoint."""
+    try:
+        response = requests.get(f"{base_url}/.well-known/mcp-config", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if "mcpServers" in data:
+                print("✓ MCP configuration: OK")
+                return True
+            else:
+                print(f"✗ MCP configuration failed: unexpected response {data}")
+                return False
+        else:
+            print(f"✗ MCP configuration failed: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ MCP configuration failed: {e}")
+        return False
+
 def validate_mcp_config(base_url):
     """Test MCP configuration endpoint."""
     try:
@@ -146,8 +206,10 @@ def run_comprehensive_validation(base_url):
     
     tests = [
         ("Basic Connectivity", validate_basic_connectivity),
+        ("Ping Endpoint", validate_ping),
         ("Readiness Probe", validate_readiness),
         ("Health Check", validate_health_check),
+        ("MCP Scan Endpoint", validate_scan_endpoint),
         ("MCP Initialization", validate_mcp_initialization),
         ("Tools Discovery", validate_tools_discovery),
         ("MCP Configuration", validate_mcp_config),

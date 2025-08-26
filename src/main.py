@@ -281,8 +281,11 @@ class MonsterJobsMCPServer:
 mcp_server = MonsterJobsMCPServer()
 
 def handle_mcp_request():
-    """Handle MCP JSON-RPC requests."""
+    """Handle MCP JSON-RPC requests with improved error handling and timeouts."""
     try:
+        # Set a reasonable timeout for request processing
+        start_time = time.time()
+        
         data = request.get_json(force=True)
         print(f"MCP Debug - Request data: {data}")  # Debug logging
 
@@ -302,6 +305,7 @@ def handle_mcp_request():
         print(f"MCP Debug - Method: {method}, Params: {params}")  # Debug logging
 
         # Handle all MCP methods on the /mcp endpoint
+        result = None
         if method == "initialize":
             result = mcp_server.handle_initialize(params)
         elif method == "notifications/initialized":
@@ -316,6 +320,12 @@ def handle_mcp_request():
             result = mcp_server.handle_resources_list()
         else:
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}), 404
+
+        # Check for timeout
+        elapsed_time = time.time() - start_time
+        if elapsed_time > 25:  # 25 second timeout
+            print(f"MCP Debug - Request timeout after {elapsed_time}s")
+            return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": "Request timeout"}, "id": req_id}), 504
 
         response_data = {"jsonrpc": "2.0", "result": result, "id": req_id}
         print(f"MCP Debug - Response: {response_data}")  # Debug logging
@@ -387,15 +397,28 @@ def root():
         "name": "Monster Jobs MCP Server",
         "version": "1.0.0",
         "description": "A Model Context Protocol server for searching jobs on Monster.com",
+        "protocol": "mcp",
+        "transport": "http", 
         "mcp_endpoints": [
             "/mcp",
             "/initialize", 
             "/tools/list",
             "/tools/call",
             "/resources/list",
-            "/.well-known/mcp-config"
+            "/.well-known/mcp-config",
+            "/mcp/scan"
         ],
-        "status": "ready"
+        "utility_endpoints": [
+            "/health",
+            "/ready", 
+            "/ping"
+        ],
+        "capabilities": {
+            "tools": ["search_jobs"],
+            "resources": ["monster://jobs/search"]
+        },
+        "status": "ready",
+        "timestamp": time.time()
     })
 
 @app.route('/initialize', methods=['POST'])
@@ -448,6 +471,79 @@ def search_jobs():
 
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/mcp/scan', methods=['GET', 'POST'])
+def mcp_scan():
+    """Dedicated endpoint for capability scanning and testing."""
+    try:
+        if request.method == 'GET':
+            # Return server capabilities for GET requests
+            return jsonify({
+                "name": "monster-jobs-mcp-server",
+                "version": "1.0.0",
+                "description": "Search job listings on Monster.com using natural language queries",
+                "protocol": "mcp",
+                "transport": "http",
+                "capabilities": {
+                    "tools": {
+                        "listChanged": True,
+                        "available": [
+                            {
+                                "name": "search_jobs",
+                                "description": "Search for jobs on Monster.com based on a natural language query",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {
+                                            "type": "string",
+                                            "description": "Natural language query describing the job search"
+                                        },
+                                        "max_jobs": {
+                                            "type": "integer",
+                                            "description": "Maximum number of jobs to return",
+                                            "default": 10
+                                        }
+                                    },
+                                    "required": ["query"]
+                                }
+                            }
+                        ]
+                    },
+                    "resources": {
+                        "listChanged": True,
+                        "available": [
+                            {
+                                "uri": "monster://jobs/search",
+                                "name": "Monster Jobs Search",
+                                "description": "Search jobs on Monster.com",
+                                "mimeType": "application/json"
+                            }
+                        ]
+                    }
+                },
+                "endpoints": {
+                    "main": "/mcp",
+                    "config": "/.well-known/mcp-config",
+                    "health": "/health",
+                    "scan": "/mcp/scan"
+                },
+                "status": "ready"
+            })
+        else:
+            # Handle POST requests as MCP JSON-RPC calls
+            return handle_mcp_request()
+    except Exception as e:
+        print(f"MCP Scan error: {e}")
+        return jsonify({
+            "error": "Scan endpoint error",
+            "message": str(e),
+            "status": "error"
+        }), 500
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    """Quick ping endpoint for connectivity testing."""
+    return {'status': 'pong', 'timestamp': time.time()}, 200
 
 @app.route('/ready', methods=['GET'])
 def readiness_probe():
