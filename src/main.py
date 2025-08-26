@@ -66,6 +66,14 @@ def handle_exception(e):
 @app.before_request
 def log_request():
     print(f"[REQUEST] {request.method} {request.path} from {request.remote_addr}")
+    print(f"[REQUEST] Headers: {dict(request.headers)}")
+    if request.method == 'POST' and request.content_type and 'json' in request.content_type:
+        try:
+            data = request.get_json(force=True)
+            print(f"[REQUEST] JSON Data: {data}")
+        except Exception as e:
+            print(f"[REQUEST] JSON Parse Error: {e}")
+            print(f"[REQUEST] Raw Data: {request.data}")
 
 # Signal handler for graceful shutdown
 def signal_handler(sig, frame):
@@ -691,6 +699,96 @@ def mcp_scan():
         
         return jsonify(error_response), 500
 
+@app.route('/test-config', methods=['GET'])
+def test_config():
+    """Return test configuration for scanning tools."""
+    try:
+        config = {
+            "tests": {
+                "connectivity": [
+                    {
+                        "name": "health_check",
+                        "endpoint": "/health",
+                        "method": "GET",
+                        "expectedStatus": 200,
+                        "expectedResponse": {"status": "healthy"}
+                    },
+                    {
+                        "name": "ping_test",
+                        "endpoint": "/ping",
+                        "method": "GET",
+                        "expectedStatus": 200,
+                        "expectedResponse": {"status": "pong"}
+                    },
+                    {
+                        "name": "ready_check",
+                        "endpoint": "/ready",
+                        "method": "GET",
+                        "expectedStatus": 200,
+                        "expectedResponse": {"status": "ready"}
+                    }
+                ],
+                "mcp_protocol": [
+                    {
+                        "name": "mcp_initialize",
+                        "endpoint": "/mcp",
+                        "method": "POST",
+                        "contentType": "application/json",
+                        "payload": {
+                            "jsonrpc": "2.0",
+                            "method": "initialize",
+                            "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
+                            "id": 1
+                        },
+                        "expectedStatus": 200
+                    },
+                    {
+                        "name": "tools_list",
+                        "endpoint": "/mcp",
+                        "method": "POST",
+                        "contentType": "application/json",
+                        "payload": {
+                            "jsonrpc": "2.0",
+                            "method": "tools/list",
+                            "params": {},
+                            "id": 2
+                        },
+                        "expectedStatus": 200
+                    }
+                ],
+                "service_discovery": [
+                    {
+                        "name": "mcp_config",
+                        "endpoint": "/.well-known/mcp-config",
+                        "method": "GET",
+                        "expectedStatus": 200
+                    },
+                    {
+                        "name": "capabilities_scan",
+                        "endpoint": "/mcp/capabilities",
+                        "method": "GET",
+                        "expectedStatus": 200
+                    }
+                ]
+            },
+            "scanning": {
+                "timeout": 30,
+                "retryAttempts": 3,
+                "retryDelay": 2,
+                "validateJson": True,
+                "checkProtocolCompliance": True,
+                "primaryEndpoint": "/mcp/scan",
+                "fallbackEndpoints": ["/mcp/capabilities", "/smithery", "/.well-known/mcp-config"]
+            }
+        }
+        return jsonify(config)
+    except Exception as e:
+        print(f"[TEST-CONFIG] Error: {e}")
+        return jsonify({
+            "error": "Failed to get test configuration",
+            "message": str(e)
+        }), 500
+
 @app.route('/scan', methods=['GET', 'POST'])
 def universal_scan():
     """Universal scanning endpoint for automated tools."""
@@ -934,6 +1032,35 @@ def health_check():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'error'}), 500
+
+# Catch-all route for unknown paths (should be last)
+@app.route('/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
+def catch_all(path):
+    """Catch-all endpoint for unknown routes to help with scanning."""
+    try:
+        print(f"[CATCH-ALL] Received request for unknown path: {path}")
+        print(f"[CATCH-ALL] Method: {request.method}")
+        print(f"[CATCH-ALL] Headers: {dict(request.headers)}")
+        
+        # Return information about available endpoints
+        return jsonify({
+            "error": "Endpoint not found",
+            "path": path,
+            "method": request.method,
+            "available_endpoints": {
+                "mcp": ["/mcp", "/mcp/capabilities", "/mcp/scan", "/mcp/server-info"],
+                "discovery": ["/.well-known/mcp-config", "/smithery"],
+                "health": ["/health", "/ping", "/ready", "/status"],
+                "testing": ["/test-config", "/scan"]
+            },
+            "suggestion": "Check available endpoints above"
+        }), 404
+    except Exception as e:
+        print(f"[CATCH-ALL] Error: {e}")
+        return jsonify({
+            "error": "Catch-all endpoint error",
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
     try:
