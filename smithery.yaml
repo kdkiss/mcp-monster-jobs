@@ -21,6 +21,13 @@ mcp:
   capabilities:
     - "tools"
     - "resources"
+  tests:
+    - endpoint: "/health"
+      method: "GET"
+      expectedStatus: 200
+    - endpoint: "/.well-known/mcp-config"
+      method: "GET"
+      expectedStatus: 200
 
 env:
   PORT: "8081"
