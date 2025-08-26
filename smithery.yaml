@@ -8,14 +8,27 @@ build:
 startCommand:
   type: "http"
   port: 8081
+  healthCheck:
+    path: "/health"
+    expectedStatus: 200
 
 mcp:
   enabled: true
   serverName: "monster-jobs-mcp-server"
   configEndpoint: "/.well-known/mcp-config"
+  initEndpoint: "/mcp"
   capabilities:
     - "tools"
     - "resources"
+  testConfig:
+    initializeRequest:
+      method: "initialize"
+      params:
+        protocolVersion: "2024-11-05"
+        capabilities: {}
+    toolsListRequest:
+      method: "tools/list"
+      params: {}
 
 env:
   PORT: "8081"

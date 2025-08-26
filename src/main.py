@@ -17,7 +17,12 @@ from typing import List, Dict, Tuple, Any
 
 # Create Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/mcp*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/tools/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/resources/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"]},
+    r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
+})
 
 def parse_query(query: str) -> Tuple[str, str, int]:
     """Parse the user query to extract job title, location, and distance."""
@@ -437,7 +442,21 @@ def search_jobs():
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({'status': 'healthy', 'service': 'Monster Jobs API'})
+    return jsonify({
+        'status': 'healthy', 
+        'service': 'Monster Jobs MCP Server',
+        'version': '1.0.0',
+        'mcp_enabled': True,
+        'endpoints': {
+            'mcp': '/mcp',
+            'initialize': '/initialize',
+            'tools_list': '/tools/list',
+            'tools_call': '/tools/call', 
+            'resources_list': '/resources/list',
+            'config': '/.well-known/mcp-config'
+        },
+        'timestamp': time.time()
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8081))  # Default to 8081 for Smithery
