@@ -584,7 +584,7 @@ def smithery_info():
         "production_ready": True
     })
 
-@app.route('/status', methods=['GET']))
+@app.route('/status', methods=['GET'])
 def status():
     """Simple status endpoint for quick server validation."""
     return {'status': 'ok', 'service': 'monster-jobs-mcp-server', 'ready': True}, 200
