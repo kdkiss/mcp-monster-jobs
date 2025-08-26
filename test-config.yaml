@@ -1,0 +1,130 @@
+# Test configuration for MCP server scanning
+tests:
+  connectivity:
+    - name: "health_check"
+      endpoint: "/health"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        status: "healthy"
+    
+    - name: "ping_test"
+      endpoint: "/ping"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        status: "pong"
+    
+    - name: "ready_check"
+      endpoint: "/ready"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        status: "ready"
+
+  mcp_protocol:
+    - name: "mcp_initialize"
+      endpoint: "/mcp"
+      method: "POST"
+      content_type: "application/json"
+      payload:
+        jsonrpc: "2.0"
+        method: "initialize"
+        params:
+          protocolVersion: "2024-11-05"
+          capabilities: {}
+        id: 1
+      expected_status: 200
+      expected_response:
+        jsonrpc: "2.0"
+        result:
+          protocolVersion: "2024-11-05"
+          serverInfo:
+            name: "monster-jobs-mcp-server"
+            version: "1.0.0"
+    
+    - name: "tools_list"
+      endpoint: "/mcp"
+      method: "POST"
+      content_type: "application/json"
+      payload:
+        jsonrpc: "2.0"
+        method: "tools/list"
+        params: {}
+        id: 2
+      expected_status: 200
+      expected_response:
+        jsonrpc: "2.0"
+        result:
+          tools:
+            - name: "search_jobs"
+    
+    - name: "resources_list"
+      endpoint: "/mcp"
+      method: "POST"
+      content_type: "application/json"
+      payload:
+        jsonrpc: "2.0"
+        method: "resources/list"
+        params: {}
+        id: 3
+      expected_status: 200
+      expected_response:
+        jsonrpc: "2.0"
+        result:
+          resources:
+            - uri: "monster://jobs/search"
+
+  service_discovery:
+    - name: "mcp_config"
+      endpoint: "/.well-known/mcp-config"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        serverInfo:
+          name: "monster-jobs-mcp-server"
+    
+    - name: "capabilities_scan"
+      endpoint: "/mcp/capabilities"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        protocolVersion: "2024-11-05"
+        serverInfo:
+          name: "monster-jobs-mcp-server"
+    
+    - name: "smithery_info"
+      endpoint: "/smithery"
+      method: "GET"
+      expected_status: 200
+      expected_response:
+        name: "monster-jobs-mcp-server"
+        type: "mcp-server"
+        protocol: "mcp"
+
+scan_configuration:
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 2
+  validate_json: true
+  check_protocol_compliance: true
+  
+scan_endpoints:
+  primary: "/mcp/scan"
+  fallback: 
+    - "/mcp/capabilities"
+    - "/smithery"
+    - "/.well-known/mcp-config"
+  
+validation:
+  required_endpoints:
+    - "/health"
+    - "/mcp"
+    - "/.well-known/mcp-config"
+  
+  required_methods:
+    - "initialize"
+    - "tools/list"
+    - "resources/list"
+  
+  protocol_version: "2024-11-05"

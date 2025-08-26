@@ -36,6 +36,7 @@ wheels/
 test_*.py
 *_test.py
 validate_*.py
+!test-config.yaml
 
 # IDE files
 .vscode/

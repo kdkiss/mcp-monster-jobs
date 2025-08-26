@@ -21,6 +21,11 @@ mcp:
   capabilities:
     - "tools"
     - "resources"
+  scanEndpoints:
+    - "/mcp/scan"
+    - "/mcp/capabilities"
+    - "/.well-known/mcp-config"
+  testConfig: "test-config.yaml"
 
 env:
   PORT: "8081"

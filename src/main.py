@@ -17,6 +17,26 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote, urljoin
 from typing import List, Dict, Tuple, Any
 
+# JSON response helper
+def safe_jsonify(data, status_code=200):
+    """Safely serialize data to JSON response with error handling."""
+    try:
+        # Test serialization first
+        json.dumps(data)
+        response = jsonify(data)
+        response.status_code = status_code
+        return response
+    except Exception as e:
+        print(f"[JSON] Serialization error: {e}")
+        error_response = {
+            "error": "JSON serialization failed",
+            "message": str(e),
+            "type": "SerializationError"
+        }
+        response = jsonify(error_response)
+        response.status_code = 500
+        return response
+
 # Add error handling wrapper for all routes
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -449,32 +469,51 @@ def mcp_config():
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint for basic connectivity testing."""
-    return jsonify({
-        "name": "Monster Jobs MCP Server",
-        "version": "1.0.0",
-        "description": "A Model Context Protocol server for searching jobs on Monster.com",
-        "protocol": "mcp",
-        "transport": "http", 
-        "mcp_endpoints": [
-            "/mcp",
-            "/initialize", 
-            "/tools/list",
-            "/tools/call",
-            "/resources/list",
-            "/.well-known/mcp-config",
-            "/mcp/scan"
-        ],
-        "utility_endpoints": [
-            "/health",
-            "/ready", 
-            "/ping"
-        ],
-        "capabilities": {
-            "tools": ["search_jobs"],
-            "resources": ["monster://jobs/search"]
-        },
-        "status": "ready"
-    })
+    try:
+        return jsonify({
+            "name": "Monster Jobs MCP Server",
+            "version": "1.0.0",
+            "description": "A Model Context Protocol server for searching jobs on Monster.com",
+            "protocol": "mcp",
+            "protocolVersion": "2024-11-05",
+            "transport": "http", 
+            "mcp_endpoints": [
+                "/mcp",
+                "/initialize", 
+                "/tools/list",
+                "/tools/call",
+                "/resources/list",
+                "/.well-known/mcp-config",
+                "/mcp/scan",
+                "/mcp/capabilities"
+            ],
+            "utility_endpoints": [
+                "/health",
+                "/ready", 
+                "/ping",
+                "/status",
+                "/scan",
+                "/smithery"
+            ],
+            "capabilities": {
+                "tools": ["search_jobs"],
+                "resources": ["monster://jobs/search"]
+            },
+            "status": "ready",
+            "healthy": True,
+            "scannable": True,
+            "testable": True,
+            "deployment": {
+                "platform": "smithery",
+                "ready": True
+            }
+        })
+    except Exception as e:
+        print(f"[ROOT] Error: {e}")
+        return jsonify({
+            "error": "Root endpoint error",
+            "message": str(e)
+        }), 500
 
 @app.route('/initialize', methods=['POST'])
 def initialize():
@@ -651,6 +690,101 @@ def mcp_scan():
             }
         
         return jsonify(error_response), 500
+
+@app.route('/scan', methods=['GET', 'POST'])
+def universal_scan():
+    """Universal scanning endpoint for automated tools."""
+    try:
+        print(f"[SCAN] Universal scan request: {request.method} from {request.remote_addr}")
+        
+        # Comprehensive server information for scanning
+        scan_info = {
+            "server": {
+                "name": "monster-jobs-mcp-server",
+                "version": "1.0.0",
+                "description": "Search job listings on Monster.com using natural language queries",
+                "status": "ready",
+                "healthy": True,
+                "type": "mcp-server"
+            },
+            "protocol": {
+                "name": "mcp",
+                "version": "2024-11-05",
+                "transport": "http",
+                "jsonrpc": "2.0"
+            },
+            "capabilities": {
+                "tools": {
+                    "available": True,
+                    "count": 1,
+                    "list": [
+                        {
+                            "name": "search_jobs",
+                            "description": "Search for jobs on Monster.com based on a natural language query",
+                            "type": "function"
+                        }
+                    ]
+                },
+                "resources": {
+                    "available": True,
+                    "count": 1,
+                    "list": [
+                        {
+                            "uri": "monster://jobs/search",
+                            "name": "Monster Jobs Search",
+                            "type": "search"
+                        }
+                    ]
+                }
+            },
+            "endpoints": {
+                "main": "/mcp",
+                "config": "/.well-known/mcp-config",
+                "health": "/health",
+                "status": "/status",
+                "ping": "/ping",
+                "ready": "/ready",
+                "scan": "/scan",
+                "capabilities": "/mcp/capabilities",
+                "smithery": "/smithery"
+            },
+            "tests": {
+                "connectivity": ["/health", "/ping", "/ready"],
+                "protocol": ["/mcp"],
+                "discovery": ["/.well-known/mcp-config", "/smithery"]
+            },
+            "deployment": {
+                "platform": "smithery",
+                "container": True,
+                "port": 8081,
+                "ready": True
+            }
+        }
+        
+        # Validate JSON serialization
+        try:
+            json.dumps(scan_info)
+            print("[SCAN] Successfully validated scan response")
+        except Exception as validation_error:
+            print(f"[SCAN] Validation error: {validation_error}")
+            return jsonify({
+                "error": "Response validation failed",
+                "message": str(validation_error)
+            }), 500
+        
+        return jsonify(scan_info)
+        
+    except Exception as e:
+        print(f"[SCAN] Universal scan error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "error": "Scan failed",
+            "message": str(e),
+            "status": "error",
+            "server": "monster-jobs-mcp-server"
+        }), 500
 
 @app.route('/mcp/capabilities', methods=['GET'])
 def mcp_capabilities():
