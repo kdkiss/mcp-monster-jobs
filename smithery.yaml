@@ -1,4 +1,4 @@
-# smithery.yaml
+# smithery.yaml - Simplified for reliable deployment
 runtime: "container"
 
 build:
@@ -11,7 +11,7 @@ startCommand:
   healthCheck:
     path: "/health"
     expectedStatus: 200
-    timeoutSeconds: 30
+    timeoutSeconds: 15
 
 mcp:
   enabled: true
@@ -21,27 +21,8 @@ mcp:
   capabilities:
     - "tools"
     - "resources"
-  scanEndpoints:
-    - "/mcp/scan"
-    - "/mcp/capabilities"
-    - "/.well-known/mcp-config"
-    - "/smithery"
-  testConfigFile: ".smithery-test.yaml"
-
-testing:
-  configFile: "test.yaml"
-  endpoints:
-    health: "/health"
-    ping: "/ping"
-    ready: "/ready"
-    mcp: "/mcp"
-    config: "/.well-known/mcp-config"
-    capabilities: "/mcp/capabilities"
-  timeout: 30
-  retries: 3
 
 env:
   PORT: "8081"
   HOST: "0.0.0.0"
-  FLASK_ENV: "production"
   PYTHONUNBUFFERED: "1"

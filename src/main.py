@@ -65,15 +65,8 @@ def handle_exception(e):
 # Add basic request logging for debugging
 @app.before_request
 def log_request():
-    print(f"[REQUEST] {request.method} {request.path} from {request.remote_addr}")
-    print(f"[REQUEST] Headers: {dict(request.headers)}")
-    if request.method == 'POST' and request.content_type and 'json' in request.content_type:
-        try:
-            data = request.get_json(force=True)
-            print(f"[REQUEST] JSON Data: {data}")
-        except Exception as e:
-            print(f"[REQUEST] JSON Parse Error: {e}")
-            print(f"[REQUEST] Raw Data: {request.data}")
+    # Simplified logging for production deployment
+    print(f"[REQUEST] {request.method} {request.path}")
 
 # Signal handler for graceful shutdown
 def signal_handler(sig, frame):
@@ -341,82 +334,61 @@ def handle_mcp_request():
         
         # Handle empty request body
         if request.content_length == 0:
-            print("[MCP] Warning: Empty request body received")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Empty request body"}, "id": None}), 400
         
         data = request.get_json(force=True)
-        print(f"[MCP] Request data: {data}")
 
         if not data:
-            print("[MCP] Error: No JSON data received")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: No JSON data received"}, "id": None}), 400
         
         if "jsonrpc" not in data or data["jsonrpc"] != "2.0":
-            print(f"[MCP] Error: Invalid jsonrpc version: {data.get('jsonrpc')}")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing or invalid jsonrpc version"}, "id": data.get("id")}), 400
 
         method = data.get("method")
         if not method:
-            print("[MCP] Error: Missing method in request")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request: Missing method"}, "id": data.get("id")}), 400
         
         params = data.get("params", {})
         req_id = data.get("id")
-        print(f"[MCP] Processing method: {method}, params: {params}, id: {req_id}")
 
         # Handle all MCP methods on the /mcp endpoint
         result = None
         try:
             if method == "initialize":
                 result = mcp_server.handle_initialize(params)
-                print(f"[MCP] Initialize result: {result}")
             elif method == "notifications/initialized":
                 # This is a notification, no response needed
                 mcp_server.handle_notifications_initialized(params)
-                print("[MCP] Handled notifications/initialized")
                 return "", 204  # No content response for notifications
             elif method == "tools/list":
                 result = mcp_server.handle_tools_list()
-                print(f"[MCP] Tools list result: {result}")
             elif method == "tools/call":
                 result = mcp_server.handle_tools_call(params)
-                print(f"[MCP] Tools call result: {result}")
             elif method == "resources/list":
                 result = mcp_server.handle_resources_list()
-                print(f"[MCP] Resources list result: {result}")
             else:
-                print(f"[MCP] Unknown method: {method}")
                 return jsonify({"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}), 404
         except Exception as method_error:
             print(f"[MCP] Method execution error: {method_error}")
-            import traceback
-            traceback.print_exc()
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Method execution error: {str(method_error)}"}, "id": req_id}), 500
 
         # Check for timeout
         elapsed_time = time.time() - start_time
         if elapsed_time > 25:  # 25 second timeout
-            print(f"[MCP] Request timeout after {elapsed_time} seconds")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": "Request timeout"}, "id": req_id}), 504
 
         # Ensure result is JSON serializable
         try:
             json.dumps(result)
         except TypeError as e:
-            print(f"[MCP] Result serialization error: {e}")
             return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Result serialization error: {str(e)}"}, "id": req_id}), 500
 
         response_data = {"jsonrpc": "2.0", "result": result, "id": req_id}
-        print(f"[MCP] Sending response: {response_data}")
         return jsonify(response_data)
 
     except json.JSONDecodeError as e:
-        print(f"[MCP] JSON decode error: {e}")
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32700, "message": f"Parse error: {str(e)}"}, "id": None}), 400
     except Exception as e:
-        print(f"[MCP] Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
         error_id = data.get("id") if 'data' in locals() and data else None
         return jsonify({"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Internal error: {str(e)}"}, "id": error_id}), 500
 
@@ -607,8 +579,6 @@ def search_jobs():
 def mcp_scan():
     """Dedicated endpoint for capability scanning and testing."""
     try:
-        print(f"[SCAN] MCP scan request: {request.method} from {request.remote_addr}")
-        
         if request.method == 'GET':
             # Return server capabilities for GET requests
             capabilities = {
@@ -1160,10 +1130,6 @@ def health_check():
 def catch_all(path):
     """Catch-all endpoint for unknown routes to help with scanning."""
     try:
-        print(f"[CATCH-ALL] Received request for unknown path: {path}")
-        print(f"[CATCH-ALL] Method: {request.method}")
-        print(f"[CATCH-ALL] Headers: {dict(request.headers)}")
-        
         # Return information about available endpoints
         return jsonify({
             "error": "Endpoint not found",
@@ -1178,7 +1144,6 @@ def catch_all(path):
             "suggestion": "Check available endpoints above"
         }), 404
     except Exception as e:
-        print(f"[CATCH-ALL] Error: {e}")
         return jsonify({
             "error": "Catch-all endpoint error",
             "message": str(e)
