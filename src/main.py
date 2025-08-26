@@ -9,7 +9,6 @@ import re
 import requests
 import time
 import json
-import signal
 import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -71,19 +70,8 @@ def handle_exception(e):
 # Add minimal request logging for debugging
 @app.before_request
 def log_request():
-    # Only log non-scanning endpoints to reduce I/O overhead
-    if request.path.startswith('/scan') or request.path.startswith('/mcp'):
-        return  # Skip all logging for scanning endpoints
-    if request.path in ['/health', '/ready', '/ping', '/status']:
-        return  # Skip logging for health checks
-
-# Signal handler for graceful shutdown
-def signal_handler(sig, frame):
-    print('\nReceived signal, shutting down gracefully...')
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+    # Completely disable all logging for maximum speed
+    pass
 
 def parse_query(query: str) -> Tuple[str, str, int]:
     """Parse the user query to extract job title, location, and distance."""

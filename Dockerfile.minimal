@@ -1,0 +1,37 @@
+# Minimal Dockerfile for deployment timeout testing
+FROM ghcr.io/astral-sh/uv:python3.12-alpine
+
+# Install the project into `/app`
+WORKDIR /app
+
+# Minimal environment setup
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PORT=8081
+ENV HOST=0.0.0.0
+
+# Install only essential system dependencies
+RUN apk add --no-cache curl
+
+# Install dependencies
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project --no-dev
+
+# Copy source code
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
+
+# Set up environment
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Ultra-fast health check for deployment testing
+HEALTHCHECK --interval=15s --timeout=5s --retries=2 --start-period=5s \
+    CMD curl -f http://localhost:8081/health || exit 1
+
+# Expose port
+EXPOSE 8081
+
+# Use minimal server for testing
+CMD ["python", "src/main_minimal.py"]
