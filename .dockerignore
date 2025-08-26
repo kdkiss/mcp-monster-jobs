@@ -37,6 +37,8 @@ test_*.py
 *_test.py
 validate_*.py
 !test-config.yaml
+!.smithery-test.yaml
+!test.yaml
 
 # IDE files
 .vscode/

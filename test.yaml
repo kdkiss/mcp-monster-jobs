@@ -1,0 +1,55 @@
+name: monster-jobs-mcp-server
+version: 1.0.0
+protocol: mcp
+
+tests:
+  connectivity:
+    health:
+      path: /health
+      method: GET
+      expect: 200
+    ping:
+      path: /ping
+      method: GET
+      expect: 200
+    ready:
+      path: /ready
+      method: GET
+      expect: 200
+
+  mcp:
+    config:
+      path: /.well-known/mcp-config
+      method: GET
+      expect: 200
+    capabilities:
+      path: /mcp/capabilities
+      method: GET
+      expect: 200
+    initialize:
+      path: /mcp
+      method: POST
+      payload:
+        jsonrpc: "2.0"
+        method: initialize
+        params:
+          protocolVersion: "2024-11-05"
+          capabilities: {}
+        id: 1
+      expect: 200
+    tools:
+      path: /mcp
+      method: POST
+      payload:
+        jsonrpc: "2.0"
+        method: tools/list
+        params: {}
+        id: 2
+      expect: 200
+
+config:
+  timeout: 30
+  scan_endpoints:
+    - /mcp/scan
+    - /mcp/capabilities
+    - /.well-known/mcp-config

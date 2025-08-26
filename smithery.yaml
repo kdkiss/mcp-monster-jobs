@@ -26,87 +26,19 @@ mcp:
     - "/mcp/capabilities"
     - "/.well-known/mcp-config"
     - "/smithery"
-  tests:
-    connectivity:
-      - name: "health_check"
-        endpoint: "/health"
-        method: "GET"
-        expectedStatus: 200
-        expectedResponse:
-          status: "healthy"
-      - name: "ping_test"
-        endpoint: "/ping"
-        method: "GET"
-        expectedStatus: 200
-        expectedResponse:
-          status: "pong"
-      - name: "ready_check"
-        endpoint: "/ready"
-        method: "GET"
-        expectedStatus: 200
-        expectedResponse:
-          status: "ready"
-    mcp_protocol:
-      - name: "mcp_initialize"
-        endpoint: "/mcp"
-        method: "POST"
-        contentType: "application/json"
-        payload:
-          jsonrpc: "2.0"
-          method: "initialize"
-          params:
-            protocolVersion: "2024-11-05"
-            capabilities: {}
-          id: 1
-        expectedStatus: 200
-        expectedResponse:
-          jsonrpc: "2.0"
-          result:
-            protocolVersion: "2024-11-05"
-            serverInfo:
-              name: "monster-jobs-mcp-server"
-      - name: "tools_list"
-        endpoint: "/mcp"
-        method: "POST"
-        contentType: "application/json"
-        payload:
-          jsonrpc: "2.0"
-          method: "tools/list"
-          params: {}
-          id: 2
-        expectedStatus: 200
-        expectedResponse:
-          jsonrpc: "2.0"
-          result:
-            tools:
-              - name: "search_jobs"
-    service_discovery:
-      - name: "mcp_config"
-        endpoint: "/.well-known/mcp-config"
-        method: "GET"
-        expectedStatus: 200
-        expectedResponse:
-          serverInfo:
-            name: "monster-jobs-mcp-server"
-      - name: "capabilities_scan"
-        endpoint: "/mcp/capabilities"
-        method: "GET"
-        expectedStatus: 200
-        expectedResponse:
-          protocolVersion: "2024-11-05"
-          serverInfo:
-            name: "monster-jobs-mcp-server"
-  scanning:
-    timeout: 30
-    retryAttempts: 3
-    retryDelay: 2
-    validateJson: true
-    checkProtocolCompliance: true
-    primaryEndpoint: "/mcp/scan"
-    fallbackEndpoints:
-      - "/mcp/capabilities"
-      - "/smithery"
-      - "/.well-known/mcp-config"
+  testConfigFile: ".smithery-test.yaml"
+
+testing:
+  configFile: "test.yaml"
+  endpoints:
+    health: "/health"
+    ping: "/ping"
+    ready: "/ready"
+    mcp: "/mcp"
+    config: "/.well-known/mcp-config"
+    capabilities: "/mcp/capabilities"
+  timeout: 30
+  retries: 3
 
 env:
   PORT: "8081"

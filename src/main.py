@@ -699,6 +699,121 @@ def mcp_scan():
         
         return jsonify(error_response), 500
 
+@app.route('/metadata', methods=['GET'])
+def metadata():
+    """Return server metadata including test configuration information."""
+    try:
+        metadata_info = {
+            "server": {
+                "name": "monster-jobs-mcp-server",
+                "version": "1.0.0",
+                "description": "MCP server for searching jobs on Monster.com",
+                "protocol": "mcp",
+                "protocolVersion": "2024-11-05"
+            },
+            "testing": {
+                "configFiles": [
+                    ".smithery-test.yaml",
+                    "test.yaml",
+                    "test-config.yaml"
+                ],
+                "configEndpoints": [
+                    "/test-config",
+                    "/.smithery-test",
+                    "/metadata"
+                ],
+                "testableEndpoints": [
+                    "/health",
+                    "/ping",
+                    "/ready",
+                    "/status",
+                    "/mcp",
+                    "/.well-known/mcp-config",
+                    "/mcp/capabilities",
+                    "/smithery"
+                ]
+            },
+            "scanning": {
+                "supported": True,
+                "endpoints": [
+                    "/mcp/scan",
+                    "/scan",
+                    "/mcp/capabilities",
+                    "/smithery"
+                ],
+                "timeout": 30,
+                "format": "json"
+            },
+            "capabilities": {
+                "tools": ["search_jobs"],
+                "resources": ["monster://jobs/search"],
+                "protocols": ["mcp", "jsonrpc", "rest"]
+            }
+        }
+        return jsonify(metadata_info)
+    except Exception as e:
+        print(f"[METADATA] Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/.smithery-test', methods=['GET'])
+def smithery_test_config():
+    """Return Smithery-specific test configuration."""
+    try:
+        config = {
+            "version": "1.0",
+            "name": "monster-jobs-mcp-server",
+            "description": "Test configuration for Monster Jobs MCP Server",
+            "tests": [
+                {
+                    "name": "health_check",
+                    "type": "http",
+                    "endpoint": "/health",
+                    "method": "GET",
+                    "expected": {
+                        "status": 200,
+                        "response": {
+                            "status": "healthy",
+                            "service": "Monster Jobs MCP Server",
+                            "version": "1.0.0"
+                        }
+                    }
+                },
+                {
+                    "name": "mcp_initialize",
+                    "type": "jsonrpc",
+                    "endpoint": "/mcp",
+                    "method": "POST",
+                    "payload": {
+                        "jsonrpc": "2.0",
+                        "method": "initialize",
+                        "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
+                        "id": 1
+                    },
+                    "expected": {
+                        "status": 200,
+                        "response": {
+                            "jsonrpc": "2.0",
+                            "result": {
+                                "protocolVersion": "2024-11-05",
+                                "serverInfo": {
+                                    "name": "monster-jobs-mcp-server"
+                                }
+                            }
+                        }
+                    }
+                }
+            ],
+            "scan_config": {
+                "timeout": 30,
+                "retry_attempts": 3,
+                "endpoints": ["/mcp/scan", "/mcp/capabilities", "/.well-known/mcp-config"]
+            }
+        }
+        return jsonify(config)
+    except Exception as e:
+        print(f"[SMITHERY-TEST] Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/test-config', methods=['GET'])
 def test_config():
     """Return test configuration for scanning tools."""
