@@ -26,6 +26,11 @@ CORS(app, resources={
     r"/.well-known/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}
 })
 
+# Add basic request logging for debugging
+@app.before_request
+def log_request():
+    print(f"[REQUEST] {request.method} {request.path} from {request.remote_addr}")
+
 # Signal handler for graceful shutdown
 def signal_handler(sig, frame):
     print('\nReceived signal, shutting down gracefully...')
@@ -243,7 +248,7 @@ class MonsterJobsMCPServer:
 
     def handle_notifications_initialized(self, params: Dict[str, Any]) -> None:
         """Handle notifications/initialized request."""
-        print("MCP Debug - notifications/initialized called")  # Debug logging
+        print(f"[MCP] Initialization completed, params: {params}")
         # This is a notification, no response needed
         pass
 
@@ -357,10 +362,6 @@ def jsonrpc_endpoint():
 @app.route('/.well-known/mcp-config', methods=['GET'])
 def mcp_config():
     """MCP configuration endpoint for service discovery."""
-    print("MCP Config endpoint called")  # Debug logging
-
-    # Get the actual host from the request
-    host = request.host_url.rstrip('/')
     config = {
         "mcpServers": {
             "monster-jobs": {
@@ -375,9 +376,23 @@ def mcp_config():
                     "port": 8081
                 }
             }
+        },
+        "serverInfo": {
+            "name": "monster-jobs-mcp-server",
+            "version": "1.0.0",
+            "description": "MCP server for searching jobs on Monster.com",
+            "capabilities": {
+                "tools": ["search_jobs"],
+                "resources": ["monster://jobs/search"]
+            }
+        },
+        "endpoints": {
+            "main": "/mcp",
+            "health": "/health",
+            "status": "/status",
+            "ping": "/ping"
         }
     }
-    print(f"MCP Config response: {config}")  # Debug logging
     return jsonify(config)
 
 @app.route('/', methods=['GET'])
@@ -529,7 +544,52 @@ def mcp_scan():
             "status": "error"
         }), 500
 
-@app.route('/ping', methods=['GET'])
+@app.route('/smithery', methods=['GET'])
+def smithery_info():
+    """Smithery-specific endpoint providing comprehensive server information."""
+    return jsonify({
+        "name": "monster-jobs-mcp-server",
+        "version": "1.0.0",
+        "description": "Search job listings on Monster.com using natural language queries",
+        "type": "mcp-server",
+        "protocol": "mcp",
+        "transport": "http",
+        "port": 8081,
+        "status": "ready",
+        "capabilities": {
+            "tools": [
+                {
+                    "name": "search_jobs",
+                    "description": "Search for jobs on Monster.com based on a natural language query",
+                    "type": "function"
+                }
+            ],
+            "resources": [
+                {
+                    "uri": "monster://jobs/search",
+                    "name": "Monster Jobs Search",
+                    "type": "search"
+                }
+            ]
+        },
+        "endpoints": {
+            "mcp": "/mcp",
+            "config": "/.well-known/mcp-config",
+            "health": "/health",
+            "status": "/status",
+            "ping": "/ping",
+            "root": "/"
+        },
+        "testable": True,
+        "production_ready": True
+    })
+
+@app.route('/status', methods=['GET']))
+def status():
+    """Simple status endpoint for quick server validation."""
+    return {'status': 'ok', 'service': 'monster-jobs-mcp-server', 'ready': True}, 200
+
+@app.route('/ping', methods=['GET']))
 def ping():
     """Quick ping endpoint for connectivity testing."""
     return {'status': 'pong'}, 200
