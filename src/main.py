@@ -119,14 +119,27 @@ def construct_search_url(job_title: str, location: str, distance: int) -> str:
 
     return f"{base_url}?{'&'.join(params)}"
 
-def scrape_monster_jobs(search_url: str, max_jobs: int = 10) -> List[Dict[str, str]]:
+def get_server_config():
+    """Get server configuration from environment or query parameters."""
+    config = {
+        'max_jobs': int(request.args.get('maxJobs', os.environ.get('MAX_JOBS', 10))),
+        'timeout': int(request.args.get('timeout', os.environ.get('TIMEOUT', 15)))
+    }
+    
+    # Validate configuration values
+    config['max_jobs'] = max(1, min(50, config['max_jobs']))
+    config['timeout'] = max(5, min(30, config['timeout']))
+    
+    return config
+
+def scrape_monster_jobs(search_url: str, max_jobs: int = 10, timeout: int = 15) -> List[Dict[str, str]]:
     """Scrape job listings from Monster.com."""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
-        response = requests.get(search_url, headers=headers, timeout=15)
+        response = requests.get(search_url, headers=headers, timeout=timeout)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -305,9 +318,16 @@ class MonsterJobsMCPServer:
             return {"error": "Query parameter is required"}
 
         try:
+            # Get server configuration
+            config = get_server_config()
+            
+            # Use config values if not specified in tool args
+            if max_jobs == 10:  # Default value, use config
+                max_jobs = config['max_jobs']
+            
             job_title, location, distance = parse_query(query)
             search_url = construct_search_url(job_title, location, distance)
-            jobs = scrape_monster_jobs(search_url, max_jobs)
+            jobs = scrape_monster_jobs(search_url, max_jobs, config['timeout'])
 
             return {
                 "query": query,
@@ -318,7 +338,8 @@ class MonsterJobsMCPServer:
                 },
                 "search_url": search_url,
                 "jobs": jobs,
-                "total_found": len(jobs)
+                "total_found": len(jobs),
+                "config": config
             }
         except Exception as e:
             return {"error": f"Search failed: {str(e)}"}

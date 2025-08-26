@@ -1,4 +1,4 @@
-# smithery.yaml - Simplified for reliable deployment
+# smithery.yaml - Following official Smithery schema
 runtime: "container"
 
 build:
@@ -7,27 +7,26 @@ build:
 
 startCommand:
   type: "http"
-  port: 8081
-  healthCheck:
-    path: "/health"
-    expectedStatus: 200
-    timeoutSeconds: 15
-
-mcp:
-  enabled: true
-  serverName: "monster-jobs-mcp-server"
-  description: "Search job listings on Monster.com using natural language queries"
-  version: "1.0.0"
-  capabilities:
-    - "tools"
-    - "resources"
-  tests:
-    - endpoint: "/health"
-      method: "GET"
-      expectedStatus: 200
-    - endpoint: "/.well-known/mcp-config"
-      method: "GET"
-      expectedStatus: 200
+  configSchema:
+    type: "object"
+    properties:
+      maxJobs:
+        type: "integer"
+        title: "Maximum Jobs"
+        description: "Maximum number of jobs to return per search"
+        default: 10
+        minimum: 1
+        maximum: 50
+      timeout:
+        type: "integer"
+        title: "Request Timeout"
+        description: "Timeout in seconds for web scraping requests"
+        default: 15
+        minimum: 5
+        maximum: 30
+  exampleConfig:
+    maxJobs: 10
+    timeout: 15
 
 env:
   PORT: "8081"
