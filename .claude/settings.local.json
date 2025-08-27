@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(curl:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:smithery.ai)"
     ],
     "deny": [],
     "ask": []

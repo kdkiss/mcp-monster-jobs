@@ -1,7 +1,7 @@
 runtime: "container"
 
 build:
-  dockerfile: "Dockerfile.emergency"
+  dockerfile: "Dockerfile"
   dockerBuildPath: "."
 
 startCommand:
