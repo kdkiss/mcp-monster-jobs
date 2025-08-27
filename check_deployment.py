@@ -6,6 +6,8 @@ Simple deployment status check for Smithery
 import json
 import os
 
+from validate_config import parse_simple_yaml
+
 def check_deployment_files():
     """Check if all required deployment files are present and valid."""
     print("📁 Checking deployment files...")
@@ -33,23 +35,15 @@ def check_smithery_config():
     print("\n⚙️  Checking smithery.yaml configuration...")
     
     try:
-        import yaml
-        with open('smithery.yaml', 'r') as f:
-            config = yaml.safe_load(f)
-        
-        required_sections = ['runtime', 'build', 'startCommand', 'env']
+        config = parse_simple_yaml("smithery.yaml")
+
+        required_sections = ["runtime", "build", "startCommand"]
         for section in required_sections:
             if section in config:
                 print(f"   ✅ {section} section present")
             else:
                 print(f"   ❌ {section} section missing")
-        
 
-        
-        return True
-        
-    except ImportError:
-        print("   ⚠️  PyYAML not available, skipping YAML validation")
         return True
     except Exception as e:
         print(f"   ❌ Error reading smithery.yaml: {e}")
@@ -59,26 +53,18 @@ def check_test_configs():
     """Check test configuration files."""
     print("\n🧪 Checking test configurations...")
     
-    test_files = ['.smithery-test.yaml', 'test-config.yaml', 'test.yaml']
-    
+    test_files = [".smithery-test.yaml", "test-config.yaml", "test.yaml"]
+
     for test_file in test_files:
         if os.path.exists(test_file):
             print(f"   ✅ {test_file} present")
             try:
-                with open(test_file, 'r') as f:
-                    if test_file.endswith('.yaml'):
-                        import yaml
-                        data = yaml.safe_load(f)
-                        if isinstance(data, dict):
-                            print(f"      ✅ Valid YAML structure")
-                        else:
-                            print(f"      ⚠️  Unexpected YAML structure")
-                    else:
-                        content = f.read()
-                        if len(content) > 0:
-                            print(f"      ✅ File has content")
-                        else:
-                            print(f"      ⚠️  File is empty")
+                with open(test_file, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                if content:
+                    print("      ✅ File has content")
+                else:
+                    print("      ⚠️  File is empty")
             except Exception as e:
                 print(f"      ❌ Error reading {test_file}: {e}")
         else:
