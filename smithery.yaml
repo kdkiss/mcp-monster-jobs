@@ -6,20 +6,19 @@ build:
 
 startCommand:
   type: "http"
-
-testConfig:
-  tests:
-    connectivity:
-      - name: "health_check"
-        endpoint: "/health"
-        method: "GET"
-        expectedStatus: 200
-    mcp_protocol:
-      - name: "mcp_initialize" 
-        endpoint: "/mcp"
-        method: "POST"
-        expectedStatus: 200
-        body:
-          jsonrpc: "2.0"
-          method: "initialize"
-          id: 1
+  configSchema:
+    type: object
+    properties:
+      maxJobs:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 10
+      timeout:
+        type: integer
+        minimum: 5
+        maximum: 30
+        default: 15
+  exampleConfig:
+    maxJobs: 10
+    timeout: 15
