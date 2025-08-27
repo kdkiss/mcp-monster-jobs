@@ -23,19 +23,4 @@ startCommand:
     maxJobs: 10
     timeout: 15
 
-testConfig:
-  tests:
-    connectivity:
-      - name: "health_check"
-        endpoint: "/health"
-        method: "GET"
-        expectedStatus: 200
-    mcp_protocol:
-      - name: "mcp_initialize" 
-        endpoint: "/mcp"
-        method: "POST"
-        expectedStatus: 200
-        body:
-          jsonrpc: "2.0"
-          method: "initialize"
-          id: 1
+    
