@@ -11,6 +11,7 @@ def parse_simple_yaml(path: str) -> dict:
     and ``null`` values while silently skipping list items. This keeps
     ``validate_config.py`` and any scripts that import it free from external
     dependencies.
+
     """
     data: dict = {}
     stack = [data]
@@ -46,6 +47,7 @@ def parse_simple_yaml(path: str) -> dict:
                     value = value.lower() == "true"
                 elif value.lower() in {"null", "none"}:
                     value = None
+
                 elif value.isdigit():
                     value = int(value)
                 stack[-1][key] = value
@@ -95,6 +97,7 @@ def validate_smithery_config() -> bool:
         if "command" not in start_command:
             print("❌ Missing command in startCommand")
             return False
+
 
         # Check if configSchema exists
         if "configSchema" not in start_command:
