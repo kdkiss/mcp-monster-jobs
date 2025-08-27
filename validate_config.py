@@ -3,11 +3,15 @@
 
 
 def parse_simple_yaml(path: str) -> dict:
-    """A minimal YAML parser for the limited structure of smithery.yaml.
+    """A minimal YAML parser for the limited structure of ``smithery.yaml``.
 
-    Supports nested dictionaries with string or integer values and ignores
-    list items. This avoids needing external dependencies like PyYAML in
-    restricted environments.
+    The real ``yaml`` package isn't available in the deployment environment,
+    so this helper implements just enough parsing logic for the key/value
+    pairs we use. It now handles strings, integers, booleans (``true``/``false``)
+    and ``null`` values while silently skipping list items. This keeps
+    ``validate_config.py`` and any scripts that import it free from external
+    dependencies.
+
     """
     data: dict = {}
     stack = [data]
@@ -39,6 +43,11 @@ def parse_simple_yaml(path: str) -> dict:
             else:
                 if value.startswith("\"") and value.endswith("\""):
                     value = value[1:-1]
+                elif value.lower() in {"true", "false"}:
+                    value = value.lower() == "true"
+                elif value.lower() in {"null", "none"}:
+                    value = None
+
                 elif value.isdigit():
                     value = int(value)
                 stack[-1][key] = value
