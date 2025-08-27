@@ -156,11 +156,11 @@ def mcp_config():
             "monster-jobs": {
                 "command": "python",
                 "args": ["src/main.py"],
-                "env": {"PORT": "8081"},
+                "env": {"PORT": "8080"},
                 "transport": {
                     "type": "http",
                     "host": "localhost",
-                    "port": 8081
+                    "port": 8080
                 }
             }
         },
@@ -258,7 +258,7 @@ def handle_exception(e):
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8081))
+        port = int(os.environ.get('PORT', 8080))
         host = os.environ.get('HOST', '0.0.0.0')
         
         # Use Flask directly for deployment reliability
