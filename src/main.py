@@ -9,6 +9,11 @@ import sys
 import json
 from flask import Flask, request, jsonify
 
+# Determine port once so all endpoints advertise the actual listening port
+# Default to 8080 so the server comes up on the expected port when no
+# environment variable is provided.
+SERVER_PORT = int(os.environ.get("PORT", 8080))
+
 # Create ultra-minimal Flask app
 app = Flask(__name__)
 
@@ -151,16 +156,17 @@ def mcp_endpoint():
 
 @app.route('/.well-known/mcp-config', methods=['GET'])
 def mcp_config():
+    """Advertise server configuration using the actual listening port."""
     return jsonify({
         "mcpServers": {
             "monster-jobs": {
                 "command": "python",
                 "args": ["src/main.py"],
-                "env": {"PORT": "8081"},
+                "env": {"PORT": str(SERVER_PORT)},
                 "transport": {
                     "type": "http",
                     "host": "localhost",
-                    "port": 8081
+                    "port": SERVER_PORT
                 }
             }
         },
@@ -258,12 +264,11 @@ def handle_exception(e):
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8081))
         host = os.environ.get('HOST', '0.0.0.0')
-        
+
         # Use Flask directly for deployment reliability
-        print(f"Starting server on {host}:{port}")
-        app.run(host=host, port=port, debug=False, threaded=True, 
+        print(f"Starting server on {host}:{SERVER_PORT}")
+        app.run(host=host, port=SERVER_PORT, debug=False, threaded=True,
                use_reloader=False, processes=1)
     except Exception as e:
         print(f"Server startup failed: {e}")
