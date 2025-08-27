@@ -32,6 +32,6 @@ def root():
     return jsonify({"name": "Monster Jobs MCP Server", "status": "ready"})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8081))
+    port = int(os.environ.get('PORT', 8080))
     host = os.environ.get('HOST', '0.0.0.0')
     app.run(host=host, port=port, debug=False)
