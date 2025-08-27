@@ -2,7 +2,7 @@
 runtime: "container"
 
 build:
-  dockerfile: "Dockerfile"
+  dockerfile: "Dockerfile.simple"
   dockerBuildPath: "."
 
 startCommand:
