@@ -12,7 +12,7 @@ tests:
       status: 200
       response:
         status: "healthy"
-        service: "Monster Jobs MCP Server"
+        service: "monster-jobs-mcp-server"
         version: "1.0.0"
 
   - name: "ping_test"
