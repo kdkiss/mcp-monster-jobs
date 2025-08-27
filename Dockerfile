@@ -9,7 +9,7 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PORT=8081
+ENV PORT=8080
 ENV HOST=0.0.0.0
 
 # Install system dependencies (minimal set)
@@ -31,8 +31,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Health check optimized for Smithery platform scanning
 HEALTHCHECK --interval=10s --timeout=3s --retries=2 --start-period=5s \
-    CMD curl -f http://localhost:8081/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Expose port and run
-EXPOSE 8081
+EXPOSE 8080
 CMD ["python", "src/main.py"]
