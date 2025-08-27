@@ -89,6 +89,7 @@ def validate_smithery_config() -> bool:
             print("❌ Missing command in startCommand")
             return False
 
+
         # Check if configSchema exists
         if "configSchema" not in start_command:
             print("⚠️  No configSchema found - this may cause 'No test configuration found' warning")

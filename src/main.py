@@ -165,6 +165,7 @@ def mcp_config():
                     "type": "http",
                     "host": "localhost",
                     "port": SERVER_PORT
+
                 }
             }
         },
@@ -262,6 +263,7 @@ def handle_exception(e):
 
 if __name__ == '__main__':
     try:
+
         host = os.environ.get('HOST', '0.0.0.0')
 
         # Use Flask directly for deployment reliability
