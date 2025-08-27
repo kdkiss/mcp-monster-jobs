@@ -65,7 +65,7 @@ def mcp_capabilities():
 @app.route('/.well-known/mcp-config', methods=['GET'])
 def mcp_config():
     return jsonify({
-        "mcpServers": {"monster-jobs": {"command": "python", "args": ["src/main.py"], "env": {"PORT": "8081"}, "transport": {"type": "http", "host": "localhost", "port": 8081}}},
+        "mcpServers": {"monster-jobs": {"command": "python", "args": ["src/main.py"], "env": {"PORT": "8080"}, "transport": {"type": "http", "host": "localhost", "port": 8080}}},
         "serverInfo": {"name": "monster-jobs-mcp-server", "version": "1.0.0", "description": "MCP server for searching jobs on Monster.com", "capabilities": {"tools": ["search_jobs"], "resources": ["monster://jobs/search"]}},
         "endpoints": {"main": "/mcp", "health": "/health", "status": "/status", "ping": "/ping"}
     })
@@ -91,7 +91,7 @@ def smithery_test():
 @app.route('/smithery', methods=['GET'])
 def smithery():
     return jsonify({
-        "name": "monster-jobs-mcp-server", "version": "1.0.0", "type": "mcp-server", "protocol": "mcp", "transport": "http", "port": 8081, "status": "ready",
+        "name": "monster-jobs-mcp-server", "version": "1.0.0", "type": "mcp-server", "protocol": "mcp", "transport": "http", "port": 8080, "status": "ready",
         "capabilities": {"tools": [{"name": "search_jobs", "type": "function"}], "resources": [{"uri": "monster://jobs/search", "type": "search"}]},
         "endpoints": {"mcp": "/mcp", "config": "/.well-known/mcp-config", "health": "/health", "status": "/status", "ping": "/ping"},
         "testable": True, "production_ready": True
@@ -112,7 +112,7 @@ def mcp():
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8081))
+        port = int(os.environ.get('PORT', 8080))
         host = os.environ.get('HOST', '0.0.0.0')
         
         # Use Waitress for production deployment
