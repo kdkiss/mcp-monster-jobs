@@ -10,7 +10,10 @@ import json
 from flask import Flask, request, jsonify
 
 # Determine port once so all endpoints advertise the actual listening port
-SERVER_PORT = int(os.environ.get("PORT", 8081))
+# Default to 8080 so the server comes up on the expected port when no
+# environment variable is provided.
+SERVER_PORT = int(os.environ.get("PORT", 8080))
+
 
 # Create ultra-minimal Flask app
 app = Flask(__name__)
