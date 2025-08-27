@@ -74,6 +74,25 @@ def validate_smithery_config() -> bool:
             )
             return False
 
+        # Ensure server launches on expected port
+        if start_command.get("port") != 8080:
+            print(
+                f"❌ Invalid port: {start_command.get('port')} (should be 8080)"
+            )
+            return False
+
+        # Verify command and environment configuration
+        if "command" not in start_command:
+            print("❌ Missing command in startCommand")
+            return False
+        env = start_command.get("env", {})
+        if env.get("PORT") != "8080":
+            print(
+                f"❌ startCommand env PORT is {env.get('PORT')} (should be '8080')"
+            )
+            return False
+
+
         # Check if configSchema exists
         if "configSchema" not in start_command:
             print("⚠️  No configSchema found - this may cause 'No test configuration found' warning")

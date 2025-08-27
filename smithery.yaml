@@ -6,6 +6,12 @@ build:
 
 startCommand:
   type: "http"
+  command: ["python", "src/main.py"]
+  env:
+    PORT: "8080"
+  port: 8080
+  healthCheck: "/health"
+
   configSchema:
     type: object
     properties:
