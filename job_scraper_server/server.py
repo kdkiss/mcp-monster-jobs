@@ -54,6 +54,7 @@ class MCPHttpRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'{"status": "ok"}')
 
+
     def do_POST(self):
         """Handle POST requests. The command is expected in the request body."""
         client_ip, client_port = self.client_address
