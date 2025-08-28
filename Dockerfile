@@ -16,5 +16,5 @@ COPY . .
 # Inform Docker that the container is listening on the specified port at runtime.
 EXPOSE 5555
 
-# Run main.py when the container launches
-CMD ["python", "-m", "main"]
+# Run the job_scraper_server package as a module
+CMD ["python", "-m", "job_scraper_server"]
