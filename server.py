@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Smithery-compliant MCP TCP server implementation.
+"""Smithery-compliant MCP HTTP server implementation.
 
 This module houses the network-facing server that accepts natural-language job
 search commands, translates them into :class:`~job_scraper_server.models.Query`
@@ -8,125 +8,111 @@ objects via the :pymod:`job_scraper_server.parser` component, delegates the
 actual data retrieval to :pymod:`job_scraper_server.scraper`, and finally
 returns a compact JSON list of job objects.
 
-The server follows the **Smithery Message Command Protocol (MCP)** which in its
-simplest form is just *one* newline-terminated UTF-8 string per request and *one*
-newline-terminated UTF-8 response.  All responses **must** be valid JSON so that
-clients can reliably decode them.  Error conditions are reported using a JSON
-object of the following shape::
-
-    {"error": "human readable message"}\n
-Successful responses are JSON arrays where every element is a mapping matching
-:pyclass:`job_scraper_server.models.Job.to_dict`.
-
-The implementation purposefully avoids heavyweight frameworks – the whole server
-is fewer than ~100 LoC while gracefully handling multiple concurrent client
-connections using the standard-library :pymod:`socketserver` helpers.
+The server is now an HTTP server, expecting POST requests with the command
+in the body.
 """
 
-from socketserver import ThreadingMixIn, TCPServer, StreamRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import json
 import logging
-import socket
-from typing import Tuple, Type
+from typing import Type
 
 from . import config
 from .models import Job
 from .parser import parse_command, CommandParseError
 from .scraper import scrape_jobs
 
-__all__ = ["start_server", "MCPRequestHandler", "ThreadedTCPServer"]
+__all__ = ["start_server", "MCPHttpRequestHandler", "ThreadedHTTPServer"]
 
 # ---------------------------------------------------------------------------
-# Logging setup – keep it extremely small to avoid another dependency.
+# Logging setup
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger("job_scraper_server")
 if not logger.handlers:
-    # Default to INFO if the root logger has no explicit level yet.
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
 # ---------------------------------------------------------------------------
-# socketserver plumbing
+# HTTP Server Implementation
 # ---------------------------------------------------------------------------
 
 
-class ThreadedTCPServer(ThreadingMixIn, TCPServer):
-    """Nothing special – we merely flip on :class:`~socketserver.ThreadingMixIn`."""
-
-    # Allow quick restart on the same port by re-using the address.
-    allow_reuse_address: bool = True
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Enable concurrent requests by mixing in ThreadingMixIn."""
+    allow_reuse_address = True
 
 
-class MCPRequestHandler(StreamRequestHandler):
-    """Handle a single Smithery MCP request on a blocking thread."""
+class MCPHttpRequestHandler(BaseHTTPRequestHandler):
+    """Handle a single Smithery MCP request via HTTP POST."""
 
-    # Slight read-limit sanitizer so a rogue client cannot exhaust memory.
-    _MAX_LINE_LENGTH: int = 4096  # bytes
+    def do_POST(self):
+        """Handle POST requests. The command is expected in the request body."""
+        client_ip, client_port = self.client_address
 
-    def handle(self) -> None:  # noqa: D401 – imperative mood acceptable in handlers.
-        client: Tuple[str, int] = self.client_address
-        logger.debug("Connection from %s:%s", *client)
-
-        try:
-            raw = self.rfile.readline(self._MAX_LINE_LENGTH)
-        except Exception as exc:  # pragma: no cover – network failures
-            logger.warning("Failed to read from %s:%s – %s", *client, exc)
-            return
-
-        if not raw:
-            # Client closed connection without sending anything.
-            logger.debug("Client %s:%s disconnected before sending data", *client)
+        content_length = int(self.headers.get('Content-Length', 0))
+        if not content_length:
+            self._send_json_error("Bad Request: Content-Length header is missing or zero.", status_code=400)
             return
 
         try:
-            command = raw.decode("utf-8", errors="ignore").strip()
-        except UnicodeDecodeError:
-            self._write_json_error("invalid UTF-8 bytes received")
+            raw_body = self.rfile.read(content_length)
+            command = raw_body.decode('utf-8').strip()
+        except Exception as e:
+            self._send_json_error(f"Bad Request: Could not read or decode request body. {e}", status_code=400)
             return
 
-        logger.info("%s:%s → %s", *client, command)
+        logger.info("%s:%s → %s", client_ip, client_port, command)
 
         try:
             query = parse_command(command)
         except CommandParseError as exc:
-            self._write_json_error(str(exc))
+            self._send_json_error(str(exc), status_code=400)
             return
 
         try:
             jobs = scrape_jobs(query)
-        except Exception as exc:  # pragma: no cover – network issues, scraper bugs
-            logger.exception("Scraper failure for %s:%s – %s", *client, exc)
-            self._write_json_error("scraper error: " + str(exc))
+        except Exception as exc:
+            logger.exception("Scraper failure for %s:%s – %s", client_ip, client_port, exc)
+            self._send_json_error(f"Scraper error: {exc}", status_code=500)
             return
 
-        # Convert dataclass objects to dicts so they are JSON-serialisable.
-        payload = [job.to_dict() if isinstance(job, Job) else job for job in jobs]
-        try:
-            response_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8") + b"\n"
-        except (TypeError, ValueError) as exc:  # pragma: no cover – should never happen
-            logger.exception("Failed to serialise response for %s:%s – %s", *client, exc)
-            self._write_json_error("internal serialisation error")
-            return
+        payload = [job.to_dict() for job in jobs]
+        self._send_json_response(payload)
 
+    def _send_json_response(self, payload, status_code=200):
+        """Send a JSON payload with a given status code."""
         try:
+            response_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_bytes)))
+            self.end_headers()
             self.wfile.write(response_bytes)
-        except (BrokenPipeError, ConnectionResetError):
-            logger.debug("Client %s:%s disconnected while sending response", *client)
-        else:
-            logger.debug("Sent %d bytes to %s:%s", len(response_bytes), *client)
+        except Exception as e:
+            if not self.wfile.closed:
+                logger.exception("Failed to serialize or send response: %s", e)
+                if not self.headers_sent:
+                    self._send_json_error("Internal server error during response creation.", 500)
 
-    # ---------------------------------------------------------------------
-    # Private helpers
-    # ---------------------------------------------------------------------
-
-    def _write_json_error(self, message: str) -> None:
-        """Send an *error* JSON payload and swallow socket errors."""
-        err = json.dumps({"error": message}, separators=(",", ":")).encode("utf-8") + b"\n"
+    def _send_json_error(self, message: str, status_code: int = 400):
+        """Send a JSON error payload."""
         try:
-            self.wfile.write(err)
-        except (BrokenPipeError, ConnectionResetError):
-            pass  # client vanished – nothing we can do.
+            error_payload = {"error": message}
+            response_bytes = json.dumps(error_payload, separators=(",", ":")).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_bytes)))
+            self.end_headers()
+            self.wfile.write(response_bytes)
+        except Exception as e:
+            if not self.wfile.closed:
+                logger.exception("Failed to send JSON error response: %s", e)
+
+    def log_message(self, format, *args):
+        """Override to log to our logger instead of stderr to maintain consistency."""
+        logger.info(format, *args)
 
 
 # ---------------------------------------------------------------------------
@@ -134,35 +120,22 @@ class MCPRequestHandler(StreamRequestHandler):
 # ---------------------------------------------------------------------------
 
 
-def start_server(host: str | None = None, port: int | None = None, handler_cls: Type[StreamRequestHandler] | None = None) -> None:
-    """Start the MCP TCP server and block forever.
-
-    This helper is used by the :pymod:`job_scraper_server.main` CLI entry-point
-    but can also be called programmatically.  It blocks the current thread until
-    interrupted via *Ctrl-C* or :pyexc:`KeyboardInterrupt`.
-    """
+def start_server(host: str | None = None, port: int | None = None, handler_cls: Type[BaseHTTPRequestHandler] | None = None) -> None:
+    """Start the MCP HTTP server and block forever."""
     host = host or config.DEFAULT_HOST
     port = port or config.DEFAULT_PORT
-    handler_cls = handler_cls or MCPRequestHandler
+    handler_cls = handler_cls or MCPHttpRequestHandler
 
-    # Ensure we pick an appropriate socket backlog.  128 is the current Linux
-    # default since kernel 5.4 so this is merely explicit.
-    backlog = 128
+    server_address = (host, port)
+    httpd = ThreadedHTTPServer(server_address, handler_cls)
 
-    # Set TCPServer.request_queue_size via subclass attribute after instantiation
-    # to avoid subclassing for one constant.
-    server: TCPServer = ThreadedTCPServer((host, port), handler_cls)
-    server.request_queue_size = backlog  # type: ignore[attr-defined]
-
-    sa = server.socket.getsockname()
-    logger.info("MCP job-scraper server listening on %s:%s", sa[0], sa[1])
+    sa = httpd.socket.getsockname()
+    logger.info("MCP job-scraper HTTP server listening on http://%s:%s", sa[0], sa[1])
 
     try:
-        server.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received – shutting down…")
     finally:
-        # Shut down all worker threads then close the listening socket.
-        server.shutdown()
-        server.server_close()
-        logger.info("Server on %s:%s terminated", sa[0], sa[1])
+        httpd.server_close()
+        logger.info("Server on http://%s:%s terminated", sa[0], sa[1])
