@@ -1,0 +1,5 @@
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+startCommand:
+  type: "http"
