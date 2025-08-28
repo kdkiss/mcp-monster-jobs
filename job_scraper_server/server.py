@@ -6,6 +6,7 @@ This module houses the network-facing server that implements the MCP 'tools'
 capability. It understands JSON-RPC 2.0 and provides two methods:
 - tools/list: To discover the `search_jobs` tool.
 - tools/call: To execute a job search.
+
 """
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -16,6 +17,7 @@ from typing import Any, Dict, Type
 
 from . import config
 from .models import Job, Query
+
 from .scraper import scrape_jobs
 
 __all__ = ["start_server", "MCPHttpRequestHandler", "ThreadedHTTPServer"]
@@ -58,6 +60,7 @@ SEARCH_JOBS_TOOL = {
 }
 
 
+
 # ---------------------------------------------------------------------------
 # HTTP Server Implementation
 # ---------------------------------------------------------------------------
@@ -70,6 +73,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 class MCPHttpRequestHandler(BaseHTTPRequestHandler):
     """Handles MCP JSON-RPC requests."""
+
 
     def do_GET(self):
         """Handle GET requests, typically for health checks."""
@@ -134,6 +138,7 @@ class MCPHttpRequestHandler(BaseHTTPRequestHandler):
             )
         except KeyError as e:
             self._send_json_rpc_error(-32602, "Invalid params", f"Missing required argument: {e}", request_id)
+
             return
 
         try:
@@ -182,6 +187,7 @@ class MCPHttpRequestHandler(BaseHTTPRequestHandler):
         """Helper to send a JSON response."""
         try:
             response_bytes = json.dumps(payload).encode("utf-8")
+
             self.send_response(status_code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response_bytes)))
@@ -192,6 +198,7 @@ class MCPHttpRequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Override to log to our logger instead of stderr."""
+
         logger.info(format, *args)
 
 

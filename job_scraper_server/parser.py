@@ -9,3 +9,4 @@ from __future__ import annotations
 from .models import Query
 
 __all__ = [] # No public API for now
+
