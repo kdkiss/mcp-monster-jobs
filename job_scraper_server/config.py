@@ -23,6 +23,7 @@ from typing import Dict, Any, List
 DEFAULT_HOST: str = os.getenv("HOST", "0.0.0.0")
 DEFAULT_PORT: int = int(os.getenv("PORT", "5555"))
 
+
 # Socket recv buffer size (bytes)
 RECV_BUFFER: int = 4096
 
