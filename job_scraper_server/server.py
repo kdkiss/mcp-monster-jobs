@@ -47,6 +47,14 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 class MCPHttpRequestHandler(BaseHTTPRequestHandler):
     """Handle a single Smithery MCP request via HTTP POST."""
 
+    def do_GET(self):
+        """Handle GET requests, typically for health checks."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"status": "ok"}')
+
+
     def do_POST(self):
         """Handle POST requests. The command is expected in the request body."""
         client_ip, client_port = self.client_address
