@@ -18,9 +18,11 @@ from typing import Dict, Any, List
 # Network & server settings
 # ---------------------------------------------------------------------------
 
-# Host/port the MCP TCP server binds to when launched via ``python -m main``
-DEFAULT_HOST: str = os.getenv("JOB_SCRAPER_HOST", "0.0.0.0")
-DEFAULT_PORT: int = int(os.getenv("JOB_SCRAPER_PORT", "5555"))
+# Host/port the MCP server binds to. Listens on 0.0.0.0 by default.
+# The PORT environment variable is commonly used by cloud platforms.
+DEFAULT_HOST: str = os.getenv("HOST", "0.0.0.0")
+DEFAULT_PORT: int = int(os.getenv("PORT", "5555"))
+
 
 # Socket recv buffer size (bytes)
 RECV_BUFFER: int = 4096
