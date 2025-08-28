@@ -2,25 +2,22 @@ from __future__ import annotations
 
 """Smithery-compliant MCP HTTP server implementation.
 
-This module houses the network-facing server that accepts natural-language job
-search commands, translates them into :class:`~job_scraper_server.models.Query`
-objects via the :pymod:`job_scraper_server.parser` component, delegates the
-actual data retrieval to :pymod:`job_scraper_server.scraper`, and finally
-returns a compact JSON list of job objects.
+This module houses the network-facing server that implements the MCP 'tools'
+capability. It understands JSON-RPC 2.0 and provides two methods:
+- tools/list: To discover the `search_jobs` tool.
+- tools/call: To execute a job search.
 
-The server is now an HTTP server, expecting POST requests with the command
-in the body.
 """
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 import json
 import logging
-from typing import Type
+from typing import Any, Dict, Type
 
 from . import config
-from .models import Job
-from .parser import parse_command, CommandParseError
+from .models import Job, Query
+
 from .scraper import scrape_jobs
 
 __all__ = ["start_server", "MCPHttpRequestHandler", "ThreadedHTTPServer"]
@@ -32,6 +29,36 @@ __all__ = ["start_server", "MCPHttpRequestHandler", "ThreadedHTTPServer"]
 logger = logging.getLogger("job_scraper_server")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# ---------------------------------------------------------------------------
+# MCP Tool Definition
+# ---------------------------------------------------------------------------
+
+SEARCH_JOBS_TOOL = {
+    "name": "search_jobs",
+    "title": "Job Search",
+    "description": "Searches for jobs on Monster.com based on keywords, location, and radius.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "keywords": {
+                "type": "string",
+                "description": "The job keywords to search for (e.g., 'python developer')."
+            },
+            "location": {
+                "type": "string",
+                "description": "The city and state to search in (e.g., 'Austin, TX')."
+            },
+            "radius": {
+                "type": "integer",
+                "description": "The search radius in miles.",
+                "default": 10
+            }
+        },
+        "required": ["keywords", "location"]
+    }
+}
+
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +72,8 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 class MCPHttpRequestHandler(BaseHTTPRequestHandler):
-    """Handle a single Smithery MCP request via HTTP POST."""
+    """Handles MCP JSON-RPC requests."""
+
 
     def do_GET(self):
         """Handle GET requests, typically for health checks."""
@@ -54,72 +82,123 @@ class MCPHttpRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'{"status": "ok"}')
 
-
     def do_POST(self):
-        """Handle POST requests. The command is expected in the request body."""
-        client_ip, client_port = self.client_address
-
-        content_length = int(self.headers.get('Content-Length', 0))
-        if not content_length:
-            self._send_json_error("Bad Request: Content-Length header is missing or zero.", status_code=400)
-            return
-
+        """Handle POST requests containing JSON-RPC commands."""
         try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            if not content_length:
+                self._send_json_rpc_error(-32700, "Parse error", "Missing Content-Length", None)
+                return
+
             raw_body = self.rfile.read(content_length)
-            command = raw_body.decode('utf-8').strip()
+            data = json.loads(raw_body)
+
+            request_id = data.get("id")
+            if data.get("jsonrpc") != "2.0" or "method" not in data:
+                self._send_json_rpc_error(-32600, "Invalid Request", "Not a valid JSON-RPC 2.0 request", request_id)
+                return
+
+            method = data["method"]
+            params = data.get("params", {})
+
+            if method == "tools/list":
+                self._handle_tools_list(request_id)
+            elif method == "tools/call":
+                self._handle_tools_call(request_id, params)
+            else:
+                self._send_json_rpc_error(-32601, "Method not found", f"The method '{method}' does not exist.", request_id)
+
+        except json.JSONDecodeError:
+            self._send_json_rpc_error(-32700, "Parse error", "Invalid JSON was received by the server.", None)
         except Exception as e:
-            self._send_json_error(f"Bad Request: Could not read or decode request body. {e}", status_code=400)
+            logger.exception("An unexpected error occurred while processing the request.")
+            self._send_json_rpc_error(-32603, "Internal error", str(e), data.get("id"))
+
+    def _handle_tools_list(self, request_id):
+        """Handle the tools/list request."""
+        result = {
+            "tools": [SEARCH_JOBS_TOOL],
+        }
+        self._send_json_rpc_response(result, request_id)
+
+    def _handle_tools_call(self, request_id, params):
+        """Handle the tools/call request."""
+        tool_name = params.get("name")
+        arguments = params.get("arguments", {})
+
+        if tool_name != "search_jobs":
+            self._send_json_rpc_error(-32602, "Invalid params", f"Unknown tool name: {tool_name}", request_id)
             return
 
-        logger.info("%s:%s → %s", client_ip, client_port, command)
-
         try:
-            query = parse_command(command)
-        except CommandParseError as exc:
-            self._send_json_error(str(exc), status_code=400)
+            query = Query(
+                keywords=arguments.get("keywords"),
+                location=arguments.get("location"),
+                radius=arguments.get("radius", 10)
+            )
+        except KeyError as e:
+            self._send_json_rpc_error(-32602, "Invalid params", f"Missing required argument: {e}", request_id)
+
             return
 
         try:
             jobs = scrape_jobs(query)
-        except Exception as exc:
-            logger.exception("Scraper failure for %s:%s – %s", client_ip, client_port, exc)
-            self._send_json_error(f"Scraper error: {exc}", status_code=500)
-            return
+            content = [{"type": "text", "text": f"{job.title} at {job.company}\n{job.snippet}\n{job.link}\n"} for job in jobs]
+            if not content:
+                content = [{"type": "text", "text": "No jobs found matching your criteria."}]
 
-        payload = [job.to_dict() for job in jobs]
-        self._send_json_response(payload)
+            result = {
+                "content": content,
+                "isError": False
+            }
+            self._send_json_rpc_response(result, request_id)
 
-    def _send_json_response(self, payload, status_code=200):
-        """Send a JSON payload with a given status code."""
+        except Exception as e:
+            logger.exception("Scraper failed during tools/call execution.")
+            result = {
+                "content": [{"type": "text", "text": f"An error occurred while scraping jobs: {e}"}],
+                "isError": True
+            }
+            self._send_json_rpc_response(result, request_id)
+
+    def _send_json_rpc_response(self, result, request_id):
+        """Sends a successful JSON-RPC response."""
+        response_payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": result
+        }
+        self._send_response(200, response_payload)
+
+    def _send_json_rpc_error(self, code, message, data, request_id):
+        """Sends a JSON-RPC error response."""
+        response_payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {
+                "code": code,
+                "message": message,
+                "data": data
+            }
+        }
+        self._send_response(200, response_payload) # JSON-RPC errors usually use 200 OK for transport
+
+    def _send_response(self, status_code, payload):
+        """Helper to send a JSON response."""
         try:
-            response_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            response_bytes = json.dumps(payload).encode("utf-8")
+
             self.send_response(status_code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response_bytes)))
             self.end_headers()
             self.wfile.write(response_bytes)
         except Exception as e:
-            if not self.wfile.closed:
-                logger.exception("Failed to serialize or send response: %s", e)
-                if not self.headers_sent:
-                    self._send_json_error("Internal server error during response creation.", 500)
-
-    def _send_json_error(self, message: str, status_code: int = 400):
-        """Send a JSON error payload."""
-        try:
-            error_payload = {"error": message}
-            response_bytes = json.dumps(error_payload, separators=(",", ":")).encode("utf-8")
-            self.send_response(status_code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(response_bytes)))
-            self.end_headers()
-            self.wfile.write(response_bytes)
-        except Exception as e:
-            if not self.wfile.closed:
-                logger.exception("Failed to send JSON error response: %s", e)
+            logger.exception("Failed to send response: %s", e)
 
     def log_message(self, format, *args):
-        """Override to log to our logger instead of stderr to maintain consistency."""
+        """Override to log to our logger instead of stderr."""
+
         logger.info(format, *args)
 
 
